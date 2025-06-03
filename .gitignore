@@ -1,2 +1,6 @@
 .DS_Store
-.pdf
+*.pdf
+*.edf
+*.tar
+*.txt
+*.csv
