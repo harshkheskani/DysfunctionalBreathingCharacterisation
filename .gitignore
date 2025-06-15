@@ -3,3 +3,5 @@
 *.edf
 *.tar
 *.zip
+*.pyc
+*.csv
