@@ -4,17 +4,18 @@ import os
 import yaml
 import numpy as np
 from collections import Counter
+from scipy.signal import butter, filtfilt
+from breaths import *
+from getFeatures import *
+
 
 def process_and_label_data(config):
+
     EVENTS_FOLDER = config['data_paths']['events_folder']
-    APNEA_EVENT_LABELS = config['labeling']['apnea_event_labels']
     RESPECK_FOLDER = config['data_paths']['respeck_folder']
     NASAL_FOLDER = config['data_paths']['nasal_folder']
-    FEATURES_FOLDER = config['data_paths']['features_folder']
     FEATURE_COLUMNS = config['windowing']['feature_columns']
-
-
-    APNEA_EVENT_LABELS = config['labeling']['apnea_event_labels']
+    APNEA_EVENT_LABELS = config['apnea_event_labels']
 
     all_sessions_df_list = []
     event_files = glob.glob(os.path.join(EVENTS_FOLDER, '*_event_export.csv'))
@@ -31,9 +32,8 @@ def process_and_label_data(config):
         session_id = base_name.split('_event_export.csv')[0]
         respeck_file_path = os.path.join(RESPECK_FOLDER, f'{session_id}_respeck.csv')
         nasal_file_path = os.path.join(NASAL_FOLDER, f'{session_id}_nasal.csv')
-        feature_file_path = os.path.join(FEATURES_FOLDER, f'{session_id}_respeck_features.csv')
         
-        if not all(os.path.exists(p) for p in [respeck_file_path, nasal_file_path, feature_file_path]):
+        if not all(os.path.exists(p) for p in [respeck_file_path, nasal_file_path]):
             print(f"  - WARNING: Skipping session '{session_id}'. A corresponding file is missing.")
             continue
         print(f"  - Processing session: {session_id}")
@@ -42,19 +42,14 @@ def process_and_label_data(config):
         df_events = pd.read_csv(event_file_path, decimal=',')
         df_nasal = pd.read_csv(nasal_file_path)
         df_respeck = pd.read_csv(respeck_file_path)
-        df_features = pd.read_csv(feature_file_path)
 
         # --- 3. Standardize timestamp columns and types ---
         df_events.rename(columns={'UnixTimestamp': 'timestamp_unix'}, inplace=True)
         df_nasal.rename(columns={'UnixTimestamp': 'timestamp_unix'}, inplace=True, errors='ignore')
         df_respeck.rename(columns={'alignedTimestamp': 'timestamp_unix'}, inplace=True)
+        df_respeck['timestamp_unix'] = df_respeck['timestamp_unix'].astype(int)
         
-        df_features['timestamp_unix'] = pd.to_datetime(df_features['startTimestamp'], format="mixed")
-        df_features['timestamp_unix'] = df_features['timestamp_unix'].astype('int64') // 10**6
 
-        df_features['timestamp_unix_end'] = pd.to_datetime(df_features['endTimestamp'], format="mixed")
-        df_features['timestamp_unix_end'] = df_features['timestamp_unix_end'].astype('int64') // 10**6
-        
         for df_ in [df_events, df_nasal, df_respeck]:
             df_['timestamp_unix'] = pd.to_numeric(df_['timestamp_unix'], errors='coerce')
             df_.dropna(subset=['timestamp_unix'], inplace=True)
@@ -71,8 +66,67 @@ def process_and_label_data(config):
             print(f"  - WARNING: Skipping session '{session_id}'. No Respeck data in the overlapping range.")
             continue
 
+        print("\nChecking for and imputing missing values (NaNs)...")
+        for col in df_respeck:
+            if col in df_respeck.columns:
+                nan_count = df_respeck[col].isnull().sum()
+                if nan_count > 0:
+                    print(f"  - Found {nan_count} NaNs in '{col}'. Applying forward-fill and backward-fill.")
+                    
+                    df_respeck[col].ffill(inplace=True) 
+                    
+                    df_respeck[col].bfill(inplace=True) 
+
         print("  - Preparing and merging engineered features using Unix time intervals...")
         df_respeck = df_respeck.sort_values('timestamp_unix')
+        
+
+                # --- 6. **NEW: Apply Bandpass Filter to Breathing Signal** ---
+        print("  - Applying bandpass filter to breathing signal...")
+        df_respeck = df_respeck.sort_values('timestamp_unix').reset_index(drop=True)
+        
+        # Calculate sampling rate from median time difference
+        time_diffs_ms = df_respeck['timestamp_unix'].diff().dropna()
+        if time_diffs_ms.empty or time_diffs_ms.median() == 0:
+            print(f"  - WARNING: Skipping session '{session_id}'. Cannot determine sampling rate from timestamps.")
+            continue
+        
+        median_time_diff_s = time_diffs_ms.median() / 1000.0
+        fs = 1.0 / median_time_diff_s
+        print(f"    - Calculated sampling rate: {fs:.2f} Hz")
+
+        # Define filter parameters
+        lowcut = 0.1  # Hz
+        highcut = 1.5 # Hz
+        
+        try:
+            # Design a 2nd order Butterworth bandpass filter
+            nyquist = 0.5 * fs
+            low = lowcut / nyquist
+            high = highcut / nyquist
+            b, a = butter(2, [low, high], btype='band')
+            
+            # Apply the filter and store in a new column
+            df_respeck['filteredBreathingSignal'] = filtfilt(b, a, df_respeck['breathingSignal'])
+        except ValueError as e:
+            print(f"  - WARNING: Skipping session '{session_id}'. Filter could not be applied. Error: {e}")
+            continue
+
+        print("  - Calculating features on-the-fly for the session...")
+        breath_features = extractFeatures(df_respeck)
+        features_df = combineDfs(breath_features, df_respeck)
+        df_features = compute_breath_regularity(features_df)
+        
+        if df_features.empty:
+            print(f"  - WARNING: Skipping session '{session_id}'. Feature engineering resulted in an empty dataframe.")
+            continue
+
+        df_features['timestamp_unix'] = pd.to_datetime(df_features['startTimestamp'], format="mixed")
+        df_features['timestamp_unix'] = df_features['timestamp_unix'].astype('int64') // 10**6
+
+        df_features['timestamp_unix_end'] = pd.to_datetime(df_features['endTimestamp'], format="mixed")
+        df_features['timestamp_unix_end'] = df_features['timestamp_unix_end'].astype('int64') // 10**6
+        
         df_features = df_features.sort_values('timestamp_unix')
 
         # Use merge_asof to find the correct feature window for each respeck data point
@@ -149,10 +203,6 @@ def process_and_label_data(config):
     else:
         print("\nImputation complete. No NaNs remain in feature columns.")
     
-        # output_path = config['data_paths']['processed_output_path']
-    # os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    # df.to_csv(output_path, index=False)
-    # print(f"Processed data saved to {output_path}")
     return df
 
 def create_windows(df, config):
@@ -165,9 +215,10 @@ def create_windows(df, config):
     SAMPLING_RATE_HZ = config['windowing']['sampling_rate_hz']
     FEATURE_COLUMNS = config['windowing']['feature_columns']
     LABEL_COLUMN = config['windowing']['label_column']
-    STEP_SIZE = config['windowing']['step_size']
     WINDOW_DURATION_SEC = config['windowing']['window_duration_sec']
     WINDOW_SIZE = int(WINDOW_DURATION_SEC * SAMPLING_RATE_HZ)
+    OVERLAP_PERCENTAGE = config['windowing']['overlap_percentage']
+    STEP_SIZE = int(WINDOW_SIZE * (1 - OVERLAP_PERCENTAGE))
 
     # --- 3. Loop through each session (night) to create windows ---
     # We group by SessionID to ensure windows do not cross over between nights.
