@@ -1,0 +1,27 @@
+# configs/main_config.yaml
+data_paths:
+  # You might want to create a smaller sample of your data in a 'sample_data' directory
+  events_folder: '../../data/bishkek_csr/03_train_ready/sample_event_exports' 
+  respeck_folder: '../../data/bishkek_csr/03_train_ready/sample_respeck'
+  nasal_folder: '../../data/bishkek_csr/03_train_ready/sample_nasal_files'
+  features_to_use: ['x', 'y', 'z', 'breathingSignal', 'breathingRate']
+
+model:
+  name: 'CNN1D'
+  # Reference another config file for model-specific hyperparameters
+  hyperparameters: ${file(model/cnn_v1.yaml)}
+
+# Training Parameters (modified for a quick local test)
+training:
+  test_nights: 1 # Use only 1 night for testing locally
+  random_state: 42
+  epochs: 5 # Run for only a few epochs to see if it works
+  batch_size: 16 # Smaller batch size if you have less VRAM locally
+  learning_rate: 0.0001
+
+# ... (rest of the model params)
+
+# W&B tracking (use a different project for local tests)
+wandb:
+  project_name: "dysfunctional-breathing-characterisation-local-tests"
+  run_name: "local_debug_run"
