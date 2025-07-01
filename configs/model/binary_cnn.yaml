@@ -1,0 +1,33 @@
+# Data paths (can be overridden by command-line arguments)
+data_paths:
+  events_folder: 'data/bishkek_csr/03_train_ready/event_exports'
+  respeck_folder: 'data/bishkek_csr/03_train_ready/respeck'
+  nasal_folder: 'data/bishkek_csr/03_train_ready/nasal_files'
+  features_folder: 'data/bishkek_csr/03_train_ready/respeck_features'
+  processed_output_path: 'data/processed/all_sessions_labeled.csv'
+  windowed_output_dir: 'data/processed/'
+  output_path: ''
+
+# Data processing and labeling parameters
+labeling:
+  apnea_event_labels: ['Obstructive Apnea']
+  label_column: 'Label'
+  session_id_column: 'SessionID'
+
+# Feature engineering (windowing) parameters
+windowing:
+  feature_columns:
+    - 'breathingSignal'
+    - 'activityLevel'
+    - 'RRV3MA'
+  sampling_rate_hz: 12.5
+  window_duration_sec: 30
+  overlap_percentage: 0.80
+
+# Model training and evaluation parameters
+training:
+  test_nights: 2
+  epochs: 100
+  batch_size: 64
+  learning_rate: 0.0001
+  random_state: 42

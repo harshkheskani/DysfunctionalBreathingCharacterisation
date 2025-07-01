@@ -1,0 +1,21 @@
+# configs/main_config.yaml
+data:
+  # Paths should be passed as arguments or environment variables in a cluster environment
+  raw_data_dir: "data/raw/"
+  processed_data_dir: "data/processed/"
+  # Features from your train.py
+  features_to_use: ['x', 'y', 'z', 'breathingSignal', 'breathingRate']
+
+model:
+  name: 'CNN1D'
+  # Reference another config file for model-specific hyperparameters
+  hyperparameters: ${file(model/cnn_v1.yaml)}
+
+training:
+  # Parameters from your train.py
+  window_size_s: 15
+  stride_s: 5
+  sampling_rate_hz: 12.5
+  batch_size: 32
+  epochs: 20
+  learning_rate: 0.001
