@@ -26,3 +26,5 @@ def remove_col(file, col_name):
     df = pd.read_csv(file)
     df = df.drop(col_name, axis=1)
     df.to_csv(file, index=False)
+
+unpack_edf('../data/bishkek_csr/03_train_ready/CSR005/EDF CSR005.edf')
