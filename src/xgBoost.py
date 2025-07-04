@@ -172,34 +172,37 @@ def main():
     
     logo = LeaveOneGroupOut()
     for fold, (train_idx, test_idx) in enumerate(logo.split(X, y, groups)):
-        test_night = np.unique(groups[test_idx])[0]
-        print(f"\n--- LONO FOLD {fold + 1}/{logo.get_n_splits(groups=groups)} --- Testing on Night: {test_night} ---")
+        try:
+            test_night = np.unique(groups[test_idx])[0]
+            print(f"\n--- LONO FOLD {fold + 1}/{logo.get_n_splits(groups=groups)} --- Testing on Night: {test_night} ---")
         
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
+            X_train, X_test = X[train_idx], X[test_idx]
+            y_train, y_test = y[train_idx], y[test_idx]
 
-        pipeline = ImbPipeline([
-            ('smote', SMOTE(random_state=config['random_state'])),
-            ('classifier', xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', device="cuda", random_state=config['random_state']))
-        ])
+            pipeline = ImbPipeline([
+                ('smote', SMOTE(random_state=config['random_state'])),
+                ('classifier', xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', device="cuda", random_state=config['random_state']))
+            ])
         
-        # Inner CV for GridSearchCV (e.g., 3-fold stratified)
-        grid_search = GridSearchCV(estimator=pipeline, param_grid=param_grid, scoring='f1', cv=3, verbose=1, n_jobs=-1)
-        grid_search.fit(X_train, y_train)
+            # Inner CV for GridSearchCV (e.g., 3-fold stratified)
+            grid_search = GridSearchCV(estimator=pipeline, param_grid=param_grid, scoring='f1', cv=3, verbose=1, n_jobs=1)
+            grid_search.fit(X_train, y_train)
         
-        best_params = grid_search.best_params_
-        print(f"  - Best Hyperparameters for this fold: {best_params}")
-        all_best_params.append({'fold': fold + 1, 'test_night': test_night, **best_params})
+            best_params = grid_search.best_params_
+            print(f"  - Best Hyperparameters for this fold: {best_params}")
+            all_best_params.append({'fold': fold + 1, 'test_night': test_night, **best_params})
         
-        # Evaluate the best model from the search on the held-out test set
-        best_model = grid_search.best_estimator_
-        preds = best_model.predict(X_test)
-        all_preds.extend(preds)
-        all_true.extend(y_test)
+            # Evaluate the best model from the search on the held-out test set
+            best_model = grid_search.best_estimator_
+            preds = best_model.predict(X_test)
+            all_preds.extend(preds)
+            all_true.extend(y_test)
         
-        # Get feature importances from the trained classifier within the pipeline
-        importances = best_model.named_steps['classifier'].feature_importances_
-        all_importances.append(pd.DataFrame({'feature': feature_names, 'importance': importances}))
+            # Get feature importances from the trained classifier within the pipeline
+            importances = best_model.named_steps['classifier'].feature_importances_
+            all_importances.append(pd.DataFrame({'feature': feature_names, 'importance': importances}))
+        except Exception as e:
+            print(f"!!!! AN error occured in fold {fold+1} for night {test_night}!!!!!")
 
     # --- 4. Final Aggregated Evaluation and Saving ---
     print(f"\n\n{'='*70}\nNESTED CROSS-VALIDATION COMPLETE\n{'='*70}")

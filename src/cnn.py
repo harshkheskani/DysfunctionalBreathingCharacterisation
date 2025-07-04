@@ -116,15 +116,15 @@ def create_windows(df, config):
     return X, y, groups
 
 class OSA_CNN(nn.Module):
-    def __init__(self, n_features, n_outputs=2):
+    def __init__(self, n_features, n_outputs=2, dropout_rate=0.5):
         super().__init__()
         self.conv_block1 = nn.Sequential(
             nn.Conv1d(n_features, 64, kernel_size=7, padding=3),
-            nn.BatchNorm1d(64), nn.ReLU(), nn.MaxPool1d(2))
+            nn.BatchNorm1d(64), nn.ReLU(), nn.MaxPool1d(2), nn.Dropout(dropout_rate))
         
         self.conv_block2 = nn.Sequential(
             nn.Conv1d(64, 128, kernel_size=7, padding=3),
-            nn.BatchNorm1d(128), nn.ReLU(), nn.MaxPool1d(2))
+            nn.BatchNorm1d(128), nn.ReLU(), nn.MaxPool1d(2), nn.Dropout(dropout_rate))
         
         # Input: 375 -> After pool1: 187 -> After pool2: 93
         flattened_size = 128 * 93
@@ -133,7 +133,7 @@ class OSA_CNN(nn.Module):
             nn.Flatten(),
             nn.Dropout(0.5),
             nn.Linear(flattened_size, 128), nn.ReLU(),
-            nn.Dropout(0.5),
+            nn.Dropout(dropout_rate),
             nn.Linear(128, n_outputs))
 
     def forward(self, x):
@@ -143,36 +143,52 @@ class OSA_CNN(nn.Module):
 
 def train_and_evaluate_fold(model, train_loader, val_loader, criterion, optimizer, device, epochs, output_dir, fold_id):
     """
-    Trains a model for one fold, saves the best version, and returns
-    the predictions from that best model on the validation set.
+    Trains a model for one fold, saves the best version, and returns:
+    1. Predictions from the best model on the validation set.
+    2. A dictionary of logged metrics for plotting learning curves.
     """
     best_val_f1 = -1
     best_epoch_preds = []
-    train_losses, val_losses, val_f1_scores = [], [], []
+    history = {'train_loss': [], 'val_loss': [], 'val_f1': []}
 
     for epoch in range(epochs):
         model.train()
-        # ... (training loop for one epoch is the same) ...
+        epoch_train_loss = 0
         for inputs, labels in train_loader:
-            # ...
+            inputs, labels = inputs.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
             optimizer.step()
+            epoch_train_loss += loss.item()
         
-        # --- Validation after each epoch ---
-        # The evaluate_model function is perfect for this part
+        history['train_loss'].append(epoch_train_loss / len(train_loader))
+
+        # Validation after each epoch
+        model.eval()
+        epoch_val_loss = 0
         val_true_labels, val_preds = evaluate_model(model, val_loader, device)
         
+        for inputs, labels in val_loader: # Recalculate loss
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            epoch_val_loss += loss.item()
+        history['val_loss'].append(epoch_val_loss / len(val_loader))
+
         val_f1 = f1_score(val_true_labels, val_preds, pos_label=1, zero_division=0)
+        history['val_f1'].append(val_f1)
+        
         print(f"  Epoch {epoch+1}/{epochs}, Val F1: {val_f1:.4f}")
 
-        # If this epoch is the best so far, save the model and its predictions
         if val_f1 > best_val_f1:
             best_val_f1 = val_f1
-            best_epoch_preds = val_preds # <-- STORE THE PREDICTIONS
+            best_epoch_preds = val_preds # Store the predictions from this best epoch
             torch.save(model.state_dict(), os.path.join(output_dir, f'best_model_fold_{fold_id}.pth'))
-            print(f"    -> New best model saved with F1-Score: {best_val_f1:.4f}")
+            print(f"    -> New best model for fold {fold_id} saved.")
 
-    # Return the predictions from the best epoch
-    return best_epoch_preds
+    return best_epoch_preds, history
 
 def evaluate_model(model, dataloader, device):
     """
@@ -235,7 +251,7 @@ def main():
     df = load_and_prep_data(args.data_dir)
     X, y, groups = create_windows(df, config)
 
-    all_fold_preds, all_fold_true = [], []
+    all_fold_preds, all_fold_true, all_fold_histories = [], [], []
     logo = LeaveOneGroupOut()
 
     results_summary = []
@@ -279,13 +295,13 @@ def main():
             criterion = nn.CrossEntropyLoss()
             optimizer = torch.optim.Adam(model.parameters(), lr=params['lr'])
             
-            train_l, val_l, val_f1 = train_and_evaluate_fold(
+            fold_preds, fold_history = train_and_evaluate_fold(
                 model, train_loader, val_loader, criterion, optimizer, device, 
                 params['epochs'], run_output_dir, fold + 1
             )
-            fold_metrics['train_loss'].append(train_l)
-            fold_metrics['val_loss'].append(val_l)
-            fold_metrics['val_f1'].append(val_f1)
+            all_fold_preds.extend(fold_preds)
+            all_fold_true.extend(y_test)
+            all_fold_histories.append(fold_history)
 
             best_model_for_fold = OSA_CNN(n_features=n_features, dropout_rate=params['dropout_rate']).to(device)
             best_model_for_fold.load_state_dict(torch.load(os.path.join(run_output_dir, f'best_model_fold_{fold+1}.pth')))
@@ -297,10 +313,10 @@ def main():
     # --- Save all artifacts for THIS experimental run ---
     # 1. Plot and save learning curves for each fold
     fig, axes = plt.subplots(3, 1, figsize=(12, 18), sharex=True)
-    for f in range(len(fold_metrics['train_loss'])):
-        axes[0].plot(fold_metrics['train_loss'][f], label=f'Fold {f+1}')
-        axes[1].plot(fold_metrics['val_loss'][f], label=f'Fold {f+1}')
-        axes[2].plot(fold_metrics['val_f1'][f], label=f'Fold {f+1}')
+    for f, history in enumerate(all_fold_histories):
+        axes[0].plot(history['train_loss'], label=f'Fold {f+1} Train')
+        axes[1].plot(history['val_loss'], label=f'Fold {f+1} Val')
+        axes[2].plot(history['val_f1'], label=f'Fold {f+1} Val')
     axes[0].set_title('Training Loss per Epoch')
     axes[1].set_title('Validation Loss per Epoch')
     axes[2].set_title('Validation F1-Score per Epoch')
