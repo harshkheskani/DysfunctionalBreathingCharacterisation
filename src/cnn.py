@@ -197,6 +197,7 @@ def main():
     print(f"Using device: {device}")
     parser = argparse.ArgumentParser(description="CNN Training Pipeline for Apnea Detection.")
     parser.add_argument('--data_dir', type=str, default='../data/bishkek_csr/03_train_ready')
+    parser.add_argument('--base_output_dir', type=str, default='./cnn_lono_results', help='Base directory to save all experiment results.')
     parser.add_argument('--output_dir', type=str, default='./cnn_lono_results')
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--lr', type=float, default=0.0001)
@@ -231,7 +232,7 @@ def main():
     print(f"Total number of experiments to run: {len(hyperparameter_grid)}")
     
 
-    df = load_and_prep_data(data_paths)
+    df = load_and_prep_data(args.data_dir)
     X, y, groups = create_windows(df, config)
 
     all_fold_preds, all_fold_true = [], []

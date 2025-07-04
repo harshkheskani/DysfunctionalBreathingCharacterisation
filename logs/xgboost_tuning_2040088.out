@@ -1,0 +1,76 @@
+======================================================
+Job started on landonia02.inf.ed.ac.uk at Thu  3 Jul 16:40:09 BST 2025
+Job ID: 2040088
+======================================================
+Conda environment 'diss' activated.
+Changed to /home/s1978431/DysfunctionalBreathingCharacterisation
+Starting Python script: /home/s1978431/DysfunctionalBreathingCharacterisation/src/xgBoost.py
+Data source: /home/s1978431/DysfunctionalBreathingCharacterisation/data/bishkek_csr/03_train_ready
+Results will be saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/xgboost_run_2040088
+--- Starting Data Loading and Preprocessing ---
+Found 9 event files...
+--- Data Preprocessing Complete. Final DataFrame shape: (2120293, 29) ---
+--- Starting 2D Aggregated Windowing Process ---
+--- Windowing Complete. Shape of X: (28230, 24) ---
+
+======================================================================
+STARTING NESTED CROSS-VALIDATION FOR HYPERPARAMETER TUNING
+======================================================================
+
+--- LONO FOLD 1/9 --- Testing on Night: 04-04-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 1, 'classifier__learning_rate': 0.005, 'classifier__max_depth': 7, 'classifier__n_estimators': 800, 'classifier__subsample': 0.8}
+
+--- LONO FOLD 2/9 --- Testing on Night: 05-04-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 1, 'classifier__learning_rate': 0.01, 'classifier__max_depth': 3, 'classifier__n_estimators': 800, 'classifier__subsample': 1.0}
+
+--- LONO FOLD 3/9 --- Testing on Night: 08-05-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 1, 'classifier__learning_rate': 0.05, 'classifier__max_depth': 3, 'classifier__n_estimators': 200, 'classifier__subsample': 1.0}
+
+--- LONO FOLD 4/9 --- Testing on Night: 10-05-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 1, 'classifier__learning_rate': 0.01, 'classifier__max_depth': 6, 'classifier__n_estimators': 600, 'classifier__subsample': 1.0}
+
+--- LONO FOLD 5/9 --- Testing on Night: 11-05-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 1, 'classifier__learning_rate': 0.01, 'classifier__max_depth': 3, 'classifier__n_estimators': 800, 'classifier__subsample': 1.0}
+
+--- LONO FOLD 6/9 --- Testing on Night: 16-04-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 0.1, 'classifier__learning_rate': 0.01, 'classifier__max_depth': 6, 'classifier__n_estimators': 200, 'classifier__subsample': 1.0}
+
+--- LONO FOLD 7/9 --- Testing on Night: 24-04-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 1, 'classifier__learning_rate': 0.005, 'classifier__max_depth': 7, 'classifier__n_estimators': 400, 'classifier__subsample': 0.8}
+
+--- LONO FOLD 8/9 --- Testing on Night: 25-04-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 1, 'classifier__learning_rate': 0.01, 'classifier__max_depth': 4, 'classifier__n_estimators': 200, 'classifier__subsample': 1.0}
+
+--- LONO FOLD 9/9 --- Testing on Night: 26-04-2025 ---
+Fitting 3 folds for each of 480 candidates, totalling 1440 fits
+  - Best Hyperparameters for this fold: {'classifier__gamma': 0.1, 'classifier__learning_rate': 0.01, 'classifier__max_depth': 7, 'classifier__n_estimators': 200, 'classifier__subsample': 0.8}
+
+
+======================================================================
+NESTED CROSS-VALIDATION COMPLETE
+======================================================================
+
+Aggregated Classification Report:
+               precision    recall  f1-score   support
+
+  Normal (0)       0.97      0.89      0.93     27328
+   Apnea (1)       0.07      0.25      0.11       902
+
+    accuracy                           0.87     28230
+   macro avg       0.52      0.57      0.52     28230
+weighted avg       0.94      0.87      0.91     28230
+
+
+Total execution time: 272.22 minutes.
+All results saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/xgboost_run_2040088
+======================================================
+Job finished at Thu  3 Jul 21:13:36 BST 2025
+======================================================
