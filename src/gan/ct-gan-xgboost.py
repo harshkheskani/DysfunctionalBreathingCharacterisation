@@ -1,16 +1,13 @@
 # ==============================================================================
-# SCRIPT: train_osa_model_with_ctgan.py
+# SCRIPT: ct-gan_xgboost.py
 # ==============================================================================
 # This script performs the full end-to-end process:
-# 1. Loads breath-level features from multiple sleep sessions.
-# 2. Aggregates features into 30-second windows on a per-session basis.
-# 3. Applies accurate ground-truth labels from event files.
-# 4. Splits data into training and testing sets.
-# 5. Trains a CTGAN model on the minority class (OSA events) of the training data.
-# 6. Generates synthetic OSA data to create a balanced training set.
-# 7. Trains a RandomForest classifier on the balanced data.
-# 8. Evaluates the classifier on the original, imbalanced test set.
-# 9. Saves all results and trained models to a unique directory in './results'.
+# 1. Loads and preprocesses multi-session breath and event data.
+# 2. Aggregates features into 30-second windows.
+# 3. Trains a CTGAN model on the minority class (OSA events).
+# 4. Generates synthetic OSA data to create a balanced training set.
+# 5. Trains an XGBoost classifier on the balanced data.
+# 6. Evaluates the classifier and saves all models and results to a unique folder.
 # ==============================================================================
 
 import pandas as pd
@@ -20,10 +17,10 @@ import glob
 import os
 import json
 from datetime import datetime
-import joblib
 
+# --- ML/DS Imports ---
+import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, ConfusionMatrixDisplay, roc_auc_score, average_precision_score
 from sdv.single_table import CTGANSynthesizer
 from sdv.metadata import SingleTableMetadata
@@ -35,6 +32,7 @@ FEATURES_FOLDER = '../data/bishkek_csr/03_train_ready/respeck_features'
 APNEA_EVENT_LABELS = ['Obstructive Apnea']
 LOCAL_TIMEZONE = 'Asia/Bishkek'
 RESULTS_BASE_DIR = './results'
+RANDOM_STATE = 42
 
 # --- List of DataFrames to collect results ---
 all_labeled_windows_list = []
@@ -45,7 +43,10 @@ session_ids = [os.path.basename(f).split('_respeck_features.csv')[0] for f in al
 
 print(f"Found {len(session_ids)} sessions. Processing one by one...")
 
-# --- Main Loop: Process each session individually ---
+# ==============================================================================
+# DATA PREPROCESSING
+# ==============================================================================
+
 for session_id in session_ids:
     print(f"  - Processing session: {session_id}")
     
@@ -56,13 +57,10 @@ for session_id in session_ids:
         print(f"    - WARNING: Missing a file for this session. Skipping.")
         continue
 
-    # --- 1. Load data for THIS session ONLY ---
     features_df = pd.read_csv(feature_file)
     df_events = pd.read_csv(event_file, decimal=',')
-    
     features_df.drop(columns=['Unnamed: 0'], inplace=True, errors='ignore')
 
-    # --- 2. Aggregate features into windows for THIS session ---
     features_df['endTimestamp_dt'] = pd.to_datetime(features_df['endTimestamp'], format="mixed").dt.tz_convert(LOCAL_TIMEZONE)
     features_df.set_index('endTimestamp_dt', inplace=True)
     
@@ -82,10 +80,8 @@ for session_id in session_ids:
     df_windows_session.fillna(0, inplace=True)
 
     if df_windows_session.empty:
-        print(f"    - WARNING: No windows created for this session. Skipping.")
         continue
 
-    # --- 3. Label windows for THIS session ---
     df_windows_session['window_end_unix_ms'] = (df_windows_session.index.astype(np.int64) // 10**6)
     df_windows_session['window_start_unix_ms'] = df_windows_session['window_end_unix_ms'] - 30000
 
@@ -107,7 +103,6 @@ for session_id in session_ids:
         
     all_labeled_windows_list.append(df_windows_session)
 
-# --- Final Combination & Data Prep ---
 print("\n--- Combining all processed sessions ---")
 final_windowed_df = pd.concat(all_labeled_windows_list)
 
@@ -131,7 +126,7 @@ print(f"\nResults for this run will be saved in: {run_dir}")
 # --- Step 1: Create a Stratified Train/Test Split ---
 print("\n--- Step 1: Splitting data into training and testing sets ---")
 X_train, X_test, y_train, y_test = train_test_split(
-    X_windows, y_windows, test_size=0.25, random_state=42, stratify=y_windows
+    X_windows, y_windows, test_size=0.25, random_state=RANDOM_STATE, stratify=y_windows
 )
 
 # --- Step 2: Isolate the Minority Class for GAN Training ---
@@ -145,7 +140,6 @@ metadata = SingleTableMetadata()
 metadata.detect_from_dataframe(data=X_train_osa)
 synthesizer = CTGANSynthesizer(metadata, epochs=500, verbose=True)
 synthesizer.fit(X_train_osa)
-# Save the trained synthesizer
 synthesizer_path = os.path.join(run_dir, 'ctgan_synthesizer.pkl')
 synthesizer.save(filepath=synthesizer_path)
 print(f"CTGAN synthesizer saved to {synthesizer_path}")
@@ -163,22 +157,31 @@ y_synthetic = np.ones(num_to_generate)
 X_train_balanced = pd.concat([X_train, synthetic_osa_features], ignore_index=True)
 y_train_balanced = np.concatenate([y_train, y_synthetic])
 
-# --- Step 6: Train the Final Classifier ---
-print("\n--- Step 6: Training RandomForest classifier on the balanced data ---")
-final_classifier = RandomForestClassifier(n_estimators=150, random_state=42, n_jobs=-1)
-final_classifier.fit(X_train_balanced, y_train_balanced)
-# Save the trained classifier
-classifier_path = os.path.join(run_dir, 'random_forest_classifier.joblib')
-joblib.dump(final_classifier, classifier_path)
-print(f"Classifier saved to {classifier_path}")
+# --- Step 6: Train the XGBoost Classifier ---
+print("\n--- Step 6: Training XGBoost classifier on the balanced data ---")
+model = xgb.XGBClassifier(
+    objective='binary:logistic',
+    n_estimators=400,
+    learning_rate=0.001,
+    max_depth=5,
+    eval_metric='logloss',
+    random_state=RANDOM_STATE,
+    n_jobs=-1,
+    # For GPU acceleration on the cluster (if XGBoost is GPU-enabled)
+    tree_method='gpu_hist', 
+    predictor='gpu_predictor'
+)
+model.fit(X_train_balanced, y_train_balanced)
+classifier_path = os.path.join(run_dir, 'xgboost_classifier.json')
+model.save_model(classifier_path)
+print(f"XGBoost classifier saved to {classifier_path}")
 
 # --- Step 7: Evaluate on the Original, Imbalanced Test Set ---
 print("\n--- Step 7: Evaluating model on the original, imbalanced test set ---")
-y_pred = final_classifier.predict(X_test)
-y_pred_proba = final_classifier.predict_proba(X_test)[:, 1]
+y_pred = model.predict(X_test)
+y_pred_proba = model.predict_proba(X_test)[:, 1]
 
 # --- Step 8: Save All Results ---
-# Save classification report and metrics to a JSON file
 report_dict = classification_report(y_test, y_pred, target_names=['Normal (0)', 'OSA (1)'], output_dict=True)
 report_dict['auprc'] = average_precision_score(y_test, y_pred_proba)
 report_dict['roc_auc'] = roc_auc_score(y_test, y_pred_proba)
@@ -188,18 +191,16 @@ with open(metrics_path, 'w') as f:
     json.dump(report_dict, f, indent=4)
 print(f"Classification report and metrics saved to {metrics_path}")
 
-# Print the report to the console as well for convenience
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred, target_names=['Normal (0)', 'OSA (1)']))
 print(f"Area Under PR Curve (AUPRC): {report_dict['auprc']:.4f}")
 print(f"Area Under ROC Curve (AUC-ROC): {report_dict['roc_auc']:.4f}")
 
-# Save the confusion matrix plot
 cm_path = os.path.join(run_dir, 'confusion_matrix.png')
 disp = ConfusionMatrixDisplay.from_predictions(y_test, y_pred, display_labels=['Normal', 'OSA'], cmap='Blues')
-disp.figure_.suptitle("Confusion Matrix on Original Test Data (after CTGAN)")
+disp.figure_.suptitle("Confusion Matrix on Original Test Data (CTGAN + XGBoost)")
 plt.savefig(cm_path)
-plt.close() # Close the plot to prevent it from displaying in non-interactive environments
+plt.close()
 print(f"Confusion matrix plot saved to {cm_path}")
 
 print("\n--- SCRIPT COMPLETE ---")

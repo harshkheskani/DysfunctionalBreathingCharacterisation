@@ -49,7 +49,7 @@ echo "Project directory: $PROJECT_DIR"
 
 # Path to the python script to execute
 # Make sure you have saved the previous Python script with this name in your 'src/gan/' folder
-PYTHON_SCRIPT="$PROJECT_DIR/src/gan/ct-gan-rf.py"
+PYTHON_SCRIPT="$PROJECT_DIR/src/gan/ct-gan-xgboost.py"
 echo "Python script to execute: $PYTHON_SCRIPT"
 
 echo "------------------------------------------------------"
