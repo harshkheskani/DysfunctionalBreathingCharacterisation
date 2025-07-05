@@ -1,0 +1,73 @@
+2025-07-05 15:27:07,425 - INFO - Created output directory: /home/s1978431/DysfunctionalBreathingCharacterisation/outputs/gan_experiment_20250705_152604
+2025-07-05 15:27:07,483 - INFO - Using device: cuda
+2025-07-05 15:27:07,483 - INFO - Loading and processing data...
+2025-07-05 15:27:07,493 - INFO - Found 9 event files.
+2025-07-05 15:28:34,137 - INFO - One-hot encoding 'activityType'...
+2025-07-05 15:28:35,773 - INFO - Total number of features after encoding: 28
+2025-07-05 15:28:36,314 - INFO - Starting windowing process...
+2025-07-05 15:29:16,604 - INFO - Windowing complete. X shape: (28868, 375, 17), y shape: (28868,)
+2025-07-05 15:29:16,616 - INFO - Class distribution in windows: Counter({np.int64(0): 27958, np.int64(1): 910})
+2025-07-05 15:29:17,387 - INFO - Isolated 535 apnea windows from the training set.
+2025-07-05 15:29:17,462 - INFO - Scaler saved to /home/s1978431/DysfunctionalBreathingCharacterisation/outputs/gan_experiment_20250705_152604/gan_scaler.pkl
+2025-07-05 15:29:42,206 - INFO - Starting GAN training...
+2025-07-05 15:31:11,036 - INFO - [Epoch   200/10000] | D loss: 0.6937 | G loss: 0.7002 | Time/interval: 88.82s
+2025-07-05 15:32:36,252 - INFO - [Epoch   400/10000] | D loss: 0.6978 | G loss: 0.6876 | Time/interval: 85.21s
+2025-07-05 15:34:01,346 - INFO - [Epoch   600/10000] | D loss: 0.6962 | G loss: 0.7216 | Time/interval: 85.09s
+2025-07-05 15:35:26,433 - INFO - [Epoch   800/10000] | D loss: 0.6940 | G loss: 0.7118 | Time/interval: 85.08s
+2025-07-05 15:36:52,009 - INFO - [Epoch  1000/10000] | D loss: 0.6958 | G loss: 0.6987 | Time/interval: 85.54s
+2025-07-05 15:38:17,891 - INFO - [Epoch  1200/10000] | D loss: 0.6515 | G loss: 0.6397 | Time/interval: 85.84s
+2025-07-05 15:39:43,406 - INFO - [Epoch  1400/10000] | D loss: 0.6887 | G loss: 0.7296 | Time/interval: 85.48s
+2025-07-05 15:41:10,428 - INFO - [Epoch  1600/10000] | D loss: 0.6879 | G loss: 0.7029 | Time/interval: 86.98s
+2025-07-05 15:42:35,323 - INFO - [Epoch  1800/10000] | D loss: 0.6899 | G loss: 0.7262 | Time/interval: 84.85s
+2025-07-05 15:44:00,291 - INFO - [Epoch  2000/10000] | D loss: 0.6689 | G loss: 0.7188 | Time/interval: 84.96s
+2025-07-05 15:45:25,245 - INFO - [Epoch  2200/10000] | D loss: 0.6867 | G loss: 0.7078 | Time/interval: 84.95s
+2025-07-05 15:46:50,186 - INFO - [Epoch  2400/10000] | D loss: 0.6824 | G loss: 0.6924 | Time/interval: 84.93s
+2025-07-05 15:48:15,048 - INFO - [Epoch  2600/10000] | D loss: 0.6766 | G loss: 0.6997 | Time/interval: 84.85s
+2025-07-05 15:49:39,999 - INFO - [Epoch  2800/10000] | D loss: 0.6685 | G loss: 0.7062 | Time/interval: 84.94s
+2025-07-05 15:51:07,134 - INFO - [Epoch  3000/10000] | D loss: 0.6597 | G loss: 0.6871 | Time/interval: 87.09s
+2025-07-05 15:52:32,124 - INFO - [Epoch  3200/10000] | D loss: 0.6924 | G loss: 0.7094 | Time/interval: 84.95s
+2025-07-05 15:53:57,079 - INFO - [Epoch  3400/10000] | D loss: 0.6383 | G loss: 0.8331 | Time/interval: 84.95s
+2025-07-05 15:55:22,087 - INFO - [Epoch  3600/10000] | D loss: 0.5671 | G loss: 1.3586 | Time/interval: 85.00s
+2025-07-05 15:56:47,091 - INFO - [Epoch  3800/10000] | D loss: 0.6429 | G loss: 0.7501 | Time/interval: 85.00s
+2025-07-05 15:58:12,052 - INFO - [Epoch  4000/10000] | D loss: 0.6654 | G loss: 0.7351 | Time/interval: 84.96s
+2025-07-05 15:59:36,976 - INFO - [Epoch  4200/10000] | D loss: 0.6777 | G loss: 0.8398 | Time/interval: 84.92s
+2025-07-05 16:01:03,823 - INFO - [Epoch  4400/10000] | D loss: 0.6845 | G loss: 0.7205 | Time/interval: 86.80s
+2025-07-05 16:02:28,792 - INFO - [Epoch  4600/10000] | D loss: 0.6963 | G loss: 0.7188 | Time/interval: 84.92s
+2025-07-05 16:03:53,647 - INFO - [Epoch  4800/10000] | D loss: 0.6711 | G loss: 0.7343 | Time/interval: 84.85s
+2025-07-05 16:05:18,613 - INFO - [Epoch  5000/10000] | D loss: 0.6575 | G loss: 0.8425 | Time/interval: 84.96s
+2025-07-05 16:06:43,572 - INFO - [Epoch  5200/10000] | D loss: 0.6607 | G loss: 0.8021 | Time/interval: 84.95s
+2025-07-05 16:08:08,526 - INFO - [Epoch  5400/10000] | D loss: 0.6892 | G loss: 0.6988 | Time/interval: 84.95s
+2025-07-05 16:09:33,383 - INFO - [Epoch  5600/10000] | D loss: 0.6860 | G loss: 0.7526 | Time/interval: 84.85s
+2025-07-05 16:11:00,483 - INFO - [Epoch  5800/10000] | D loss: 0.6770 | G loss: 0.7205 | Time/interval: 87.06s
+2025-07-05 16:12:25,515 - INFO - [Epoch  6000/10000] | D loss: 0.6926 | G loss: 0.7010 | Time/interval: 84.99s
+2025-07-05 16:13:50,479 - INFO - [Epoch  6200/10000] | D loss: 0.6719 | G loss: 0.7457 | Time/interval: 84.96s
+2025-07-05 16:15:15,451 - INFO - [Epoch  6400/10000] | D loss: 0.7075 | G loss: 0.7183 | Time/interval: 84.97s
+2025-07-05 16:16:40,416 - INFO - [Epoch  6600/10000] | D loss: 0.6858 | G loss: 0.7094 | Time/interval: 84.96s
+2025-07-05 16:18:05,392 - INFO - [Epoch  6800/10000] | D loss: 0.7006 | G loss: 0.7034 | Time/interval: 84.97s
+2025-07-05 16:19:30,336 - INFO - [Epoch  7000/10000] | D loss: 0.6643 | G loss: 0.7424 | Time/interval: 84.94s
+2025-07-05 16:20:57,424 - INFO - [Epoch  7200/10000] | D loss: 0.6565 | G loss: 0.6425 | Time/interval: 87.05s
+2025-07-05 16:22:22,458 - INFO - [Epoch  7400/10000] | D loss: 0.6812 | G loss: 0.7201 | Time/interval: 84.99s
+2025-07-05 16:23:47,450 - INFO - [Epoch  7600/10000] | D loss: 0.6834 | G loss: 0.7305 | Time/interval: 84.99s
+2025-07-05 16:25:12,415 - INFO - [Epoch  7800/10000] | D loss: 0.6928 | G loss: 0.7089 | Time/interval: 84.96s
+2025-07-05 16:26:37,392 - INFO - [Epoch  8000/10000] | D loss: 0.6915 | G loss: 0.6950 | Time/interval: 84.97s
+2025-07-05 16:28:02,408 - INFO - [Epoch  8200/10000] | D loss: 0.7179 | G loss: 0.6802 | Time/interval: 85.01s
+2025-07-05 16:29:27,392 - INFO - [Epoch  8400/10000] | D loss: 0.6520 | G loss: 0.8742 | Time/interval: 84.98s
+2025-07-05 16:30:54,372 - INFO - [Epoch  8600/10000] | D loss: 0.6651 | G loss: 0.7404 | Time/interval: 86.94s
+2025-07-05 16:32:19,381 - INFO - [Epoch  8800/10000] | D loss: 0.6493 | G loss: 0.8392 | Time/interval: 84.96s
+2025-07-05 16:33:44,353 - INFO - [Epoch  9000/10000] | D loss: 0.5642 | G loss: 2.3549 | Time/interval: 84.97s
+2025-07-05 16:35:09,341 - INFO - [Epoch  9200/10000] | D loss: 0.5857 | G loss: 2.1878 | Time/interval: 84.98s
+2025-07-05 16:36:34,319 - INFO - [Epoch  9400/10000] | D loss: 0.5550 | G loss: 2.6493 | Time/interval: 84.97s
+2025-07-05 16:37:59,282 - INFO - [Epoch  9600/10000] | D loss: 0.5633 | G loss: 2.1924 | Time/interval: 84.96s
+2025-07-05 16:39:24,236 - INFO - [Epoch  9800/10000] | D loss: 0.5504 | G loss: 2.2111 | Time/interval: 84.95s
+2025-07-05 16:40:51,441 - INFO - [Epoch 10000/10000] | D loss: 0.5086 | G loss: 2.0476 | Time/interval: 87.17s
+2025-07-05 16:40:51,478 - INFO - GAN training complete.
+2025-07-05 16:40:51,837 - INFO - Generator model saved to /home/s1978431/DysfunctionalBreathingCharacterisation/outputs/gan_experiment_20250705_152604/generator.pth
+2025-07-05 16:40:51,837 - INFO - Starting GAN evaluation...
+2025-07-05 16:40:52,354 - INFO - Creating qualitative comparison plot...
+2025-07-05 16:40:52,355 - INFO - Attempting to plot features: {'breathingSignal': 0, 'breathingRate': 2, 'breath_regularity': 16}
+2025-07-05 16:40:56,820 - INFO - Qualitative plot saved to /home/s1978431/DysfunctionalBreathingCharacterisation/outputs/gan_experiment_20250705_152604/real_vs_synthetic_plot.png
+2025-07-05 16:40:56,820 - INFO - Running PCA and t-SNE for quantitative evaluation...
+/home/s1978431/miniconda3/envs/diss/lib/python3.11/site-packages/sklearn/manifold/_t_sne.py:1164: FutureWarning: 'n_iter' was renamed to 'max_iter' in version 1.5 and will be removed in 1.7.
+  warnings.warn(
+2025-07-05 16:41:09,649 - INFO - t-SNE plot saved to /home/s1978431/DysfunctionalBreathingCharacterisation/outputs/gan_experiment_20250705_152604/tsne_visualization.png
+2025-07-05 16:41:09,650 - INFO - Evaluation complete.
