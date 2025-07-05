@@ -28,13 +28,12 @@ def load_process_data(data_path):
 
     all_sessions_df_list = []
 
-    EVENTS_FOLDER = '../../data/bishkek_csr/03_train_ready/event_exports' 
-    RESPECK_FOLDER = '../../data/bishkek_csr/03_train_ready/respeck'
-    NASAL_FOLDER = '../../data/bishkek_csr/03_train_ready/nasal_files'
-    FEATURES_FOLDER = '../../data/bishkek_csr/03_train_ready/respeck_features'
+    EVENTS_FOLDER = os.path.join(data_path, '03_train_ready/event_exports') 
+    RESPECK_FOLDER = os.path.join(data_path, '03_train_ready/respeck')
+    NASAL_FOLDER = os.path.join(data_path, '03_train_ready/nasal_files')
+    FEATURES_FOLDER = os.path.join(data_path, '03_train_ready/respeck_features')
 
     APNEA_EVENTS = ['Obstructive Apnea']
-
 
     event_files = glob.glob(os.path.join(EVENTS_FOLDER, '*_event_export.csv'))
 
@@ -239,65 +238,120 @@ class Discriminator(nn.Module):
 # =======================================================================================
 # =======================================================================================
 # 3. GAN EVALUATION FUNCTIONS
-# =======================================================================================
+# ======================================================================================
 
-def evaluate_and_plot(generator, scaler, X_real_apnea, latent_dim, device, output_dir):
-    """Generates plots for qualitative and quantitative evaluation."""
+def evaluate_and_plot(generator, scaler, X_real_apnea, latent_dim, device, output_dir, feature_names):
+    """
+    Generates plots for qualitative and quantitative evaluation.
+    Dynamically finds feature indices for plotting.
+    """
     logging.info("Starting GAN evaluation...")
     generator.eval()
-    
+
     # --- Generate Synthetic Data ---
-    N_ANALYSIS = min(1000, len(X_real_apnea)) # Use a reasonable number for analysis
+    # Use a number of samples that is safe for both plotting and t-SNE
+    N_ANALYSIS = min(1000, len(X_real_apnea))
+    if N_ANALYSIS < 5:
+        logging.warning(f"Not enough real apnea samples ({len(X_real_apnea)}) for a full evaluation. Skipping plots.")
+        return
+
     z = torch.randn(N_ANALYSIS, latent_dim).to(device)
     with torch.no_grad():
         synthetic_data_scaled = generator(z).cpu().numpy()
-    
+
     synthetic_data_unscaled = scaler.inverse_transform(
         synthetic_data_scaled.reshape(-1, X_real_apnea.shape[2])
     ).reshape(N_ANALYSIS, X_real_apnea.shape[1], X_real_apnea.shape[2])
-    
+
     real_samples_unscaled = X_real_apnea[np.random.choice(len(X_real_apnea), N_ANALYSIS, replace=False)]
 
     # --- 1. Qualitative Plot ---
     logging.info("Creating qualitative comparison plot...")
-    feature_indices = [0, 2, 17] # breathingSignal, breathingRate, breath_regularity
-    fig, axes = plt.subplots(len(feature_indices), 2, figsize=(15, 10), sharex=True)
-    for i, idx in enumerate(feature_indices):
-        for k in range(5): # Plot 5 samples
+
+    # --- FIX: Dynamically find feature indices instead of hardcoding them ---
+    features_to_plot_map = {
+        'breathingSignal': None,
+        'breathingRate': None,
+        'breath_regularity': None
+    }
+
+    for i, name in enumerate(feature_names):
+        if name in features_to_plot_map:
+            features_to_plot_map[name] = i
+
+    logging.info(f"Attempting to plot features: {features_to_plot_map}")
+
+    # Check if we found the desired features
+    if any(v is None for v in features_to_plot_map.values()):
+        logging.warning("Could not find all specified features for plotting. Defaulting to first 3 features.")
+        # Fallback to plotting the first 3 features if some are missing
+        indices_to_plot = [0, 1, 2]
+        names_for_plot = feature_names[:3]
+    else:
+        indices_to_plot = list(features_to_plot_map.values())
+        names_for_plot = list(features_to_plot_map.keys())
+
+    fig, axes = plt.subplots(len(indices_to_plot), 2, figsize=(15, 10), sharex=True)
+    if len(indices_to_plot) == 1: # Handle case with only one feature to plot
+        axes = np.array([axes])
+
+    fig.suptitle('GAN Evaluation: Real vs. Synthetic Samples', fontsize=16)
+
+    for i, (idx, name) in enumerate(zip(indices_to_plot, names_for_plot)):
+        for k in range(min(5, N_ANALYSIS)): # Plot up to 5 samples
             axes[i, 0].plot(real_samples_unscaled[k, :, idx], alpha=0.7)
             axes[i, 1].plot(synthetic_data_unscaled[k, :, idx], alpha=0.7)
-        axes[i, 0].set_title(f'Real Samples (Feature {idx})')
-        axes[i, 1].set_title(f'Synthetic Samples (Feature {idx})')
-    plt.savefig(os.path.join(output_dir, 'real_vs_synthetic_plot.png'))
+        axes[i, 0].set_title(f'Real Samples - {name}')
+        axes[i, 1].set_title(f'Synthetic Samples - {name}')
+        axes[i, 0].grid(True, linestyle='--', alpha=0.5)
+        axes[i, 1].grid(True, linestyle='--', alpha=0.5)
+
+    plot_path = os.path.join(output_dir, 'real_vs_synthetic_plot.png')
+    plt.savefig(plot_path)
     plt.close()
+    logging.info(f"Qualitative plot saved to {plot_path}")
+
 
     # --- 2. Quantitative t-SNE Plot ---
+    # Check perplexity constraint for t-SNE
+    if N_ANALYSIS <= 40:
+        logging.warning(f"t-SNE perplexity ({40}) is too high for the number of samples ({N_ANALYSIS}). Skipping t-SNE plot.")
+        logging.info("Evaluation complete.")
+        return
+
     logging.info("Running PCA and t-SNE for quantitative evaluation...")
     real_flat = real_samples_unscaled.reshape(N_ANALYSIS, -1)
     synth_flat = synthetic_data_unscaled.reshape(N_ANALYSIS, -1)
-    
+
+    # It's safer to fit PCA only on real data to learn the principal components of the true distribution
     pca = PCA(n_components=50)
-    pca_data = pca.fit_transform(np.concatenate((real_flat, synth_flat), axis=0))
-    
+    pca.fit(real_flat)
+    pca_real = pca.transform(real_flat)
+    pca_synth = pca.transform(synth_flat)
+
     tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
-    tsne_data = tsne.fit_transform(pca_data)
+    tsne_data = tsne.fit_transform(np.concatenate((pca_real, pca_synth), axis=0))
 
     plot_df = pd.DataFrame({
         't-SNE-1': tsne_data[:, 0], 't-SNE-2': tsne_data[:, 1],
         'label': ['Real'] * N_ANALYSIS + ['Synthetic'] * N_ANALYSIS
     })
-    
+
     plt.figure(figsize=(10, 8))
     sns.scatterplot(x='t-SNE-1', y='t-SNE-2', hue='label', data=plot_df, alpha=0.5)
     plt.title('t-SNE Visualization of Real vs. Synthetic Data')
-    plt.savefig(os.path.join(output_dir, 'tsne_visualization.png'))
+    tsne_path = os.path.join(output_dir, 'tsne_visualization.png')
+    plt.savefig(tsne_path)
     plt.close()
-    logging.info(f"Evaluation plots saved to '{output_dir}'.")
+    logging.info(f"t-SNE plot saved to {tsne_path}")
+    logging.info("Evaluation complete.")
 
 
 # =======================================================================================
 # 4. MAIN TRAINING SCRIPT
 # =======================================================================================
+
+import time # Add this import at the top of your script if it's not there
 
 def main(args):
     # --- Setup ---
@@ -307,62 +361,71 @@ def main(args):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"Using device: {device}")
-    
+
     # --- Load Data ---
+    # This correctly returns the list of feature names
     X, y, groups, feature_names = load_process_data(args.data_path)
-    
+
     # --- Split Data ---
-    # We only need the training set to train the GAN
     unique_groups = np.unique(groups)
     train_groups, _ = train_test_split(unique_groups, test_size=0.2, random_state=42)
     train_mask = np.isin(groups, train_groups)
-    
+
     X_train, y_train = X[train_mask], y[train_mask]
-    
+
     # Isolate apnea windows for GAN training
     X_train_apnea = X_train[y_train == 1]
     logging.info(f"Isolated {len(X_train_apnea)} apnea windows from the training set.")
-    
-    # --- Scale Data ---
+
+    # --- FIX 1: Add a check for empty data ---
+    if len(X_train_apnea) < 5: # Need at least a few samples to train
+        logging.error("Not enough apnea samples found in the training set to train the GAN. Halting.")
+        return
+
+    # --- FIX 2: Define the scaler *before* using it ---
     scaler = MinMaxScaler(feature_range=(-1, 1))
+
+    # --- Scale Data ---
     n_samples, n_timesteps, n_features = X_train_apnea.shape
+    # Now fit_transform using the defined scaler
     X_train_apnea_scaled = scaler.fit_transform(X_train_apnea.reshape(-1, n_features)).reshape(n_samples, n_timesteps, n_features)
-    
+
     # Save the scaler
     scaler_path = os.path.join(args.output_dir, 'gan_scaler.pkl')
     with open(scaler_path, 'wb') as f:
         pickle.dump(scaler, f)
     logging.info(f"Scaler saved to {scaler_path}")
-    
+
     # --- DataLoader ---
     train_data_gan = TensorDataset(torch.from_numpy(X_train_apnea_scaled).float())
     train_loader_gan = DataLoader(train_data_gan, batch_size=args.batch_size, shuffle=True, drop_last=True)
-    
+
     # --- Initialize Models, Optimizers, Loss ---
     seq_len, n_features = X_train.shape[1], X_train.shape[2]
     generator = Generator(args.latent_dim, seq_len, n_features).to(device)
     discriminator = Discriminator(seq_len, n_features).to(device)
-    
+
     optimizer_G = torch.optim.Adam(generator.parameters(), lr=args.lr, betas=(0.5, 0.999))
     optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=args.lr, betas=(0.5, 0.999))
     adversarial_loss = nn.BCEWithLogitsLoss().to(device)
-    
+
     # --- Training Loop ---
     logging.info("Starting GAN training...")
+    interval_start_time = time.time()
     for epoch in range(args.epochs):
         for i, (real_seqs,) in enumerate(train_loader_gan):
             real_seqs = real_seqs.to(device)
-            
+
             # Train Discriminator
             optimizer_D.zero_grad()
             real_pred = discriminator(real_seqs)
             d_real_loss = adversarial_loss(real_pred, torch.ones_like(real_pred))
-            
-            z = torch.randn(args.batch_size, args.latent_dim).to(device)
+
+            z = torch.randn(real_seqs.size(0), args.latent_dim).to(device) # Use real_seqs.size(0) to handle last batch
             fake_seqs = generator(z)
             fake_pred = discriminator(fake_seqs.detach())
             d_fake_loss = adversarial_loss(fake_pred, torch.zeros_like(fake_pred))
-            
+
             d_loss = (d_real_loss + d_fake_loss) / 2
             d_loss.backward()
             optimizer_D.step()
@@ -373,19 +436,35 @@ def main(args):
             g_loss = adversarial_loss(g_pred, torch.ones_like(g_pred))
             g_loss.backward()
             optimizer_G.step()
-        
+
         if (epoch + 1) % args.log_interval == 0:
-            logging.info(f"[Epoch {epoch+1}/{args.epochs}] [D loss: {d_loss.item():.4f}] [G loss: {g_loss.item():.4f}]")
+            interval_end_time = time.time()
+            elapsed_time = interval_end_time - interval_start_time
+            logging.info(
+                f"[Epoch {epoch+1:>5}/{args.epochs}] | "
+                f"D loss: {d_loss.item():.4f} | "
+                f"G loss: {g_loss.item():.4f} | "
+                f"Time/interval: {elapsed_time:.2f}s"
+            )
+            interval_start_time = time.time()
 
     logging.info("GAN training complete.")
-    
+
     # --- Save Generator Model ---
     generator_path = os.path.join(args.output_dir, 'generator.pth')
     torch.save(generator.state_dict(), generator_path)
     logging.info(f"Generator model saved to {generator_path}")
-    
-    # --- Final Evaluation ---
-    evaluate_and_plot(generator, scaler, X_train_apnea, args.latent_dim, device, args.output_dir)
+
+    # --- FIX 3: Pass `feature_names` to the evaluation function ---
+    evaluate_and_plot(
+        generator=generator,
+        scaler=scaler,
+        X_real_apnea=X_train_apnea,
+        latent_dim=args.latent_dim,
+        device=device,
+        output_dir=args.output_dir,
+        feature_names=feature_names  # <-- This is the added argument
+    )
 
 
 if __name__ == '__main__':

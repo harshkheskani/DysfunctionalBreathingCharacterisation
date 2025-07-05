@@ -7,11 +7,11 @@
 
 # --- SLURM Preamble: Job Configuration ---
 #SBATCH --job-name=tsgan_apnea_training # Job Name: Descriptive name for your job
-#SBATCH --gpus=a6000:1                  # GPU Request: Our script uses one GPU
+#SBATCH --gpus=1                  # GPU Request: Our script uses one GPU
 #SBATCH --nodes=1                       # Number of nodes
 #SBATCH --ntasks-per-node=1             # Number of tasks (processes) per node
 #SBATCH --cpus-per-task=8               # CPU cores per task: for data loading, etc.
-#SBATCH --mem=32G                       # Memory request: Adjust as needed
+#SBATCH --mem=64G                       # Memory request: Adjust as needed
 
 # Log Files: Save logs to a 'logs' folder, one level up from the script's location
 # The %j variable is replaced by the SLURM job ID.
@@ -28,19 +28,13 @@ echo "======================================================"
 # This line is robust and finds your conda installation.
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate diss # <-- IMPORTANT: Make sure 'diss' is your environment name
-echo "Conda environment 'diss' activated."
+echo "Conda environment 'diss' activated"
 
-# --- Directory and Script Setup ---
-# Get the directory where this script is located
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
-echo "Script directory: $SCRIPT_DIR"
-
-# The project root is one directory above the script's directory
-PROJECT_DIR=$(dirname "$SCRIPT_DIR")
-echo "Project root directory: $PROJECT_DIR"
+PROJECT_DIR=$(dirname $SLURM_SUBMIT_DIR)
+echo "Project root directory set to: $PROJECT_DIR"
 
 # Path to the python script to execute
-PYTHON_SCRIPT="$PROJECT_DIR/src/gan/train_gan.py" # <-- UPDATED SCRIPT NAME
+PYTHON_SCRIPT="$PROJECT_DIR/src/gan/train_gan.py"
 echo "Python script to execute: $PYTHON_SCRIPT"
 
 # --- Define Experiment Parameters ---
@@ -48,7 +42,7 @@ echo "Python script to execute: $PYTHON_SCRIPT"
 # These variables will be passed as command-line arguments to the Python script.
 DATA_PATH="$PROJECT_DIR/data/bishkek_csr/"
 OUTPUT_DIR="$PROJECT_DIR/outputs/gan_experiment_$(date +%Y%m%d_%H%M%S)" # Create a unique output folder for each run
-EPOCHS=5000
+EPOCHS=10000
 BATCH_SIZE=128
 LEARNING_RATE=0.0002
 LATENT_DIM=100
