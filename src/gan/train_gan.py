@@ -141,19 +141,19 @@ def load_process_data(data_path):
         raise ValueError("Processing failed. No data was loaded.")
 
     df = pd.concat(all_sessions_df_list, ignore_index=True)
-
+    
     print("\n----------------------------------------------------")
     print("Data loading with PRECISE interval labeling complete.")
     print(f"Final DataFrame shape: {df.shape}")
     print(f"Final class distribution in raw data: \n{df['Label'].value_counts(normalize=True)}")
     
-    if 'modeActivityType' in df.columns:
-        logging.info("One-hot encoding 'modeActivityType'...")
-        df = pd.get_dummies(df, columns=['modeActivityType'], prefix='activity')
+    if 'activityType' in df.columns:
+        logging.info("One-hot encoding 'activityType'...")
+        df = pd.get_dummies(df, columns=['activityType'], prefix='activity')
 
     FEATURE_COLUMNS = [
         'breathingSignal', 'activityLevel', 'breathingRate',
-        'area', 'extremas', 'meanActivityLevel','modeActivityType','peakRespiratoryFlow',
+        'area', 'extremas', 'meanActivityLevel','peakRespiratoryFlow',
         'duration','BR_md','BR_mean','BR_std','AL_md','AL_mean','AL_std','RRV','RRV3MA',
         'breath_regularity'
     ]
