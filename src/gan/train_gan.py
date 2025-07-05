@@ -19,7 +19,7 @@ import seaborn as sns
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def load_process_data():
+def load_process_data(data_path):
     """
     Loads all session data, performs windowing and returns X, y , groups
     """
