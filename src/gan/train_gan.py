@@ -309,7 +309,7 @@ def main(args):
     logging.info(f"Using device: {device}")
     
     # --- Load Data ---
-    X, y, groups, feature_names = load_and_preprocess_data(args.data_path)
+    X, y, groups, feature_names = load_process_data(args.data_path)
     
     # --- Split Data ---
     # We only need the training set to train the GAN
