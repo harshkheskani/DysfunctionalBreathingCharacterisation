@@ -7,13 +7,8 @@
 
 # --- SLURM Preamble ---
 #SBATCH --job-name=xgboost_tuning
-#SBATCH --partition=gpu
-#SBATCH --gpus=1
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --time=04:00:00
+#SBATCH --gpus=2
+#SBATCH --time=06:00:00
 #SBATCH --output=../logs/xgboost_tuning_%j.out # Save logs one level up in a 'logs' folder
 #SBATCH --error=../logs/xgboost_tuning_%j.err
 
@@ -31,14 +26,9 @@ echo "Conda environment 'diss' activated."
 
 # --- Define Paths Robustly ---
 
-# This script should be located in your 'scripts' folder.
-# Get the absolute path to the directory where this script lives (e.g., /path/to/project/scripts)
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
-echo "Script directory: $SCRIPT_DIR"
-
-# The project root is one directory above the script's directory
-PROJECT_DIR=$(dirname "$SCRIPT_DIR")
-echo "Project directory: $PROJECT_DIR"
+PROJECT_DIR="/home/s1978431/DysfunctionalBreathingCharacterisation"
+cd $PROJECT_DIR
+echo "Changed to $(pwd)"
 
 # Path to the python script to execute
 PYTHON_SCRIPT="$PROJECT_DIR/src/xgBoost.py" # Assuming your python script is in a 'src' folder
