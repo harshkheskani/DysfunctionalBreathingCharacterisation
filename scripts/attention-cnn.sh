@@ -30,7 +30,7 @@ cd $PROJECT_DIR
 echo "Changed to $(pwd)"
 
 # Path to the python script to execute
-PYTHON_SCRIPT="$PROJECT_DIR/src/Classification/multiCNN_attention.ipynb" # Assuming your python script is in a 'src' folder
+PYTHON_SCRIPT="$PROJECT_DIR/src/Classification/attention_cnn_cluster.py" # Assuming your python script is in a 'src' folder
 
 # Input data directory, relative to the project root
 DATA_DIR="$PROJECT_DIR/data/bishkek_csr/03_train_ready"
