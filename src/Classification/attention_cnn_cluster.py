@@ -33,12 +33,14 @@ from imblearn.over_sampling import SMOTE, RandomOverSampler
 import seaborn as sns
 import matplotlib.pyplot as plt
 import math
+import argparse
 
 # ==============================================================================
 # 2. Model & Helper Class Definitions
 # ==============================================================================
 
 ### NEW: Improved CNN with Attention and Multi-Scale Convolutions ###
+
 
 class ChannelAttention(nn.Module):
     """Channel attention mechanism to focus on important features"""
@@ -338,11 +340,17 @@ def add_signal_features(df):
 def main():
     """Main function to run the data processing, training, and evaluation pipeline."""
 
+    parser = argparse.ArgumentParser(description="Train an attention-based CNN for sleep apnea detection.")
+    parser.add_argument('--data_dir', type=str, required=True,
+                        help='Base directory containing event_exports, respeck, and nasal_files folders.')
+    parser.add_argument('--base_output_dir', type=str, required=True,
+                        help='Base directory to save results (e.g., plots, checkpoints).')
+    args = parser.parse_args()
     # --- Configuration & Constants ---
     print("--- 1. Setting up configuration and constants ---")
-    EVENTS_FOLDER = '../../data/bishkek_csr/03_train_ready/event_exports'
-    RESPECK_FOLDER = '../../data/bishkek_csr/03_train_ready/respeck'
-    NASAL_FOLDER = '../../data/bishkek_csr/03_train_ready/nasal_files'
+    EVENTS_FOLDER = os.path.join(args.data_dir, 'event_exports')
+    RESPECK_FOLDER = os.path.join(args.data_dir, 'respeck')
+    NASAL_FOLDER = os.path.join(args.data_dir, 'nasal_files')
 
     EVENT_GROUP_TO_LABEL = {
         1: ['Obstructive Apnea'],
