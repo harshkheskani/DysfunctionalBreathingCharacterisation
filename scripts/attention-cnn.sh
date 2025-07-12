@@ -9,8 +9,8 @@
 #SBATCH --job-name=cnn-attention    # A descriptive name for your CNN job
 #SBATCH --gres=gpu:1                      # CNNs typically benefit most from a single powerful GPU per process
 #SBATCH --time=12:00:00                   # Request more time, CNN training can be long
-#SBATCH --output=../logs/cnn_experiment_%j.out # Save logs one level up in a 'logs' folder
-#SBATCH --error=../logs/cnn_experiment_%j.err
+#SBATCH --output=../logs/cnn_attention_%j.out # Save logs one level up in a 'logs' folder
+#SBATCH --error=../logs/cnn_attention_%j.err
 
 # --- Environment Setup ---
 echo "======================================================"
@@ -37,7 +37,7 @@ DATA_DIR="$PROJECT_DIR/data/bishkek_csr/03_train_ready"
 
 # Base output directory for results, created relative to the project root
 # The python script will create sub-folders for each run inside this
-OUTPUT_DIR="$PROJECT_DIR/results/cnn_experiments_${SLURM_JOB_ID}"
+OUTPUT_DIR="$PROJECT_DIR/results/cd${SLURM_JOB_ID}"
 
 # --- Execute the Python Script ---
 
