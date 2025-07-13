@@ -6,12 +6,12 @@
 # a more robust Leave-One-Night-Out (LONO) cross-validation.
 #
 # To run, ensure all dependencies are installed and execute from the command line:
-# python multiCNN_attention.py
+# python multiCNN_attention.py --data_dir /path/to/data --base_output_dir /path/to/results
 #
-# NOTE: The script will generate and display plots. For use on a cluster without
-# a display, you can save the plots by uncommenting the `plt.savefig()` lines
-# and commenting out `plt.show()`.
-#
+# NOTE: The script is configured to save plots directly to files (e.g.,
+# 'confusion_matrix_lono_aggregated.png') for use on a cluster without a
+# display environment.
+
 # Dependencies:
 # pandas, numpy, scikit-learn, imbalanced-learn, torch, seaborn, matplotlib
 
@@ -309,6 +309,8 @@ class EarlyStopping:
             self.save_checkpoint(val_loss, model)
         elif score < self.best_score + self.delta:
             self.counter += 1
+            if self.verbose:
+                 self.trace_func(f'EarlyStopping counter: {self.counter} out of {self.patience}')
             if self.counter >= self.patience:
                 self.early_stop = True
         else:
@@ -317,6 +319,8 @@ class EarlyStopping:
             self.counter = 0
 
     def save_checkpoint(self, val_loss, model):
+        if self.verbose:
+            self.trace_func(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model ...')
         torch.save(model.state_dict(), self.path)
         self.val_loss_min = val_loss
 
@@ -346,12 +350,25 @@ def main():
     parser.add_argument('--base_output_dir', type=str, required=True,
                         help='Base directory to save results (e.g., plots, checkpoints).')
     args = parser.parse_args()
+
+    print("======================================================================")
+    print("=== STARTING SLEEP APNEA DETECTION TRAINING SCRIPT ===")
+    print("======================================================================")
+
     # --- Configuration & Constants ---
-    print("--- 1. Setting up configuration and constants ---")
+    print("\n--- 1. Setting up configuration and constants ---")
+    
+    # Paths
     EVENTS_FOLDER = os.path.join(args.data_dir, 'event_exports')
     RESPECK_FOLDER = os.path.join(args.data_dir, 'respeck')
     NASAL_FOLDER = os.path.join(args.data_dir, 'nasal_files')
+    OUTPUT_DIR = args.base_output_dir
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
+    print(f"Data Directory: {args.data_dir}")
+    print(f"Output Directory: {OUTPUT_DIR}")
 
+    # Data & Labeling
     EVENT_GROUP_TO_LABEL = {
         1: ['Obstructive Apnea'],
         2: ['Hypopnea', 'Central Hypopnea', 'Obstructive Hypopnea'],
@@ -370,16 +387,27 @@ def main():
     N_OUTPUTS = len(EVENT_GROUP_TO_LABEL) + 1
     CLASS_NAMES = [LABEL_TO_EVENT_GROUP_NAME[i] for i in range(N_OUTPUTS)]
 
+    # Windowing
     SAMPLING_RATE_HZ = 12.5
     WINDOW_DURATION_SEC = 30
     WINDOW_SIZE = int(WINDOW_DURATION_SEC * SAMPLING_RATE_HZ)
     OVERLAP_PERCENTAGE = 0.80
     STEP_SIZE = int(WINDOW_SIZE * (1 - OVERLAP_PERCENTAGE))
     
+    # Training
     RANDOM_STATE = 42
     EPOCHS = 100
     BATCH_SIZE = 64
-    FEATURE_COLUMNS = ['breathingSignal', 'activityLevel', 'breathingRate', 'x', 'y', 'z']
+    FEATURE_COLUMNS = ['breathingSignal', 'activityLevel', 'breathingRate', 'x', 'y', 'z', 'breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+    
+    print("\n[CONFIG] Parameters:")
+    print(f"  - Classes: {N_OUTPUTS} {CLASS_NAMES}")
+    print(f"  - Window Size: {WINDOW_SIZE} samples ({WINDOW_DURATION_SEC}s)")
+    print(f"  - Window Step: {STEP_SIZE} samples ({OVERLAP_PERCENTAGE*100}% overlap)")
+    print(f"  - Epochs: {EPOCHS}")
+    print(f"  - Batch Size: {BATCH_SIZE}")
+    print(f"  - Features: {FEATURE_COLUMNS}")
+
 
     # --- Data Loading ---
     print("\n--- 2. Loading and preprocessing data ---")
@@ -387,20 +415,21 @@ def main():
     event_files = glob.glob(os.path.join(EVENTS_FOLDER, '*_event_export.csv'))
 
     if not event_files:
-        raise FileNotFoundError(f"No event files found in '{EVENTS_FOLDER}'.")
+        raise FileNotFoundError(f"No event files found in '{EVENTS_FOLDER}'. Please check the path.")
 
-    print(f"Found {len(event_files)} event files. Processing each one...")
-
-    for event_file_path in event_files:
+    print(f"Found {len(event_files)} event files. Processing each session...")
+    processed_count = 0
+    for i, event_file_path in enumerate(event_files):
         base_name = os.path.basename(event_file_path)
         session_id = base_name.split('_event_export.csv')[0]
         respeck_file_path = os.path.join(RESPECK_FOLDER, f'{session_id}_respeck.csv')
         nasal_file_path = os.path.join(NASAL_FOLDER, f'{session_id}_nasal.csv')
 
+        print(f"  ({i+1}/{len(event_files)}) Processing session: {session_id}")
+
         if not all(os.path.exists(p) for p in [respeck_file_path, nasal_file_path]):
-            print(f"  - WARNING: Skipping session '{session_id}'. A corresponding file is missing.")
+            print(f"    - WARNING: Skipping session '{session_id}'. A corresponding Respeck or Nasal file is missing.")
             continue
-        print(f"  - Processing session: {session_id}")
         
         df_events = pd.read_csv(event_file_path, decimal=',')
         df_nasal = pd.read_csv(nasal_file_path)
@@ -421,10 +450,9 @@ def main():
         df_respeck = df_respeck[(df_respeck['timestamp_unix'] >= start_time) & (df_respeck['timestamp_unix'] <= end_time)].copy()
 
         if df_respeck.empty:
-            print(f"  - WARNING: Skipping session '{session_id}'. No Respeck data in the overlapping range.")
+            print(f"    - WARNING: Skipping session '{session_id}'. No Respeck data in the overlapping timestamp range.")
             continue
 
-        print(f"  - Applying precise interval-based labels...")
         df_respeck['Label'] = 0
         df_events['Duration_ms'] = (df_events['Duration'] * 1000).astype('int64')
         df_events['end_time_unix'] = df_events['timestamp_unix'] + df_events['Duration_ms']
@@ -438,22 +466,24 @@ def main():
 
         df_respeck['SessionID'] = session_id
         all_sessions_df_list.append(df_respeck)
+        processed_count += 1
 
     if not all_sessions_df_list:
-        raise ValueError("Processing failed. No data was loaded.")
+        raise ValueError("Processing failed. No data was loaded. Check file paths and content.")
 
+    print(f"\nSuccessfully processed {processed_count} out of {len(event_files)} sessions.")
     df = pd.concat(all_sessions_df_list, ignore_index=True)
 
     print("\n----------------------------------------------------")
-    print("Data loading with PURE signals complete.")
+    print("Data loading and labeling complete.")
     print(f"Final DataFrame shape: {df.shape}")
-    print(f"Final class distribution in raw data: \n{df['Label'].value_counts(normalize=True)}")
+    print(f"Class distribution in raw data points: \n{df['Label'].value_counts(normalize=True)}")
+    print("----------------------------------------------------")
 
     # --- Feature Engineering & Imputation ---
     print("\n--- 3. Engineering features, imputing missing values, and normalizing ---")
     df = add_signal_features(df)
     
-    # Fill std NaNs that can occur at the start of a group
     df['breathing_signal_rolling_std'].bfill(inplace=True)
 
     print("Checking for and imputing missing values (NaNs)...")
@@ -467,12 +497,14 @@ def main():
     if final_nan_count > 0:
         print(f"\nWARNING: {final_nan_count} NaNs still remain in feature columns after imputation. Please investigate.")
     else:
-        print("\nImputation complete. No NaNs remain in feature columns.")
+        print("Imputation complete. No NaNs remain in feature columns.")
 
     # --- Per-Session Normalization ---
     print("\nApplying per-session (per-subject) normalization...")
     df_normalized = df.copy()
-    for session_id in df['SessionID'].unique():
+    unique_sessions = df['SessionID'].unique()
+    for i, session_id in enumerate(unique_sessions):
+        print(f"  - Normalizing session {i+1}/{len(unique_sessions)}: {session_id}")
         session_mask = df['SessionID'] == session_id
         session_features = df.loc[session_mask, FEATURE_COLUMNS]
         scaler = StandardScaler()
@@ -482,11 +514,7 @@ def main():
 
     # --- Windowing Data ---
     print("\n--- 4. Creating time-series windows ---")
-    print(f"Number of classes: {N_OUTPUTS}")
-    print(f"Class names: {CLASS_NAMES}")
-
     X, y, groups = [], [], []
-    print("\nStarting the windowing process on normalized data...")
     for session_id, session_df in df_normalized.groupby('SessionID'):
         for i in range(0, len(session_df) - WINDOW_SIZE, STEP_SIZE):
             window_df = session_df.iloc[i : i + WINDOW_SIZE]
@@ -500,12 +528,13 @@ def main():
     y = np.asarray(y)
     groups = np.asarray(groups)
 
-    print("\nData windowing complete.")
+    print("Data windowing complete.")
     print("----------------------------------------------------")
     print(f"Shape of X (features): {X.shape}")
     print(f"Shape of y (labels):   {y.shape}")
     print(f"Shape of groups (IDs): {groups.shape}")
     print(f"Final class distribution across all windows: {Counter(y)}")
+    print("----------------------------------------------------")
     
     # --- Device Setup ---
     print("\n--- 5. Setting up PyTorch device ---")
@@ -527,7 +556,8 @@ def main():
     test_mask = np.isin(groups, test_ids)
     X_train, y_train = X[train_mask], y[train_mask]
     X_test, y_test = X[test_mask], y[test_mask]
-    print("Train-test split complete.")
+    
+    print(f"Train/Test split based on {len(train_ids)} train nights and {len(test_ids)} test nights.")
     print(f"Training set class distribution: {Counter(y_train)}")
     print(f"Testing set class distribution:  {Counter(y_test)}")
 
@@ -542,10 +572,10 @@ def main():
     k = min_class_count - 1
 
     if k < 1:
-        print(f"Warning: Smallest minority class has {min_class_count} samples. Falling back to RandomOverSampler.")
+        print(f"  - Warning: Smallest minority class has {min_class_count} samples. Falling back to RandomOverSampler.")
         sampler = RandomOverSampler(random_state=RANDOM_STATE)
     else:
-        print(f"Smallest minority class has {min_class_count} samples. Setting k_neighbors for SMOTE to {k}.")
+        print(f"  - Smallest minority class has {min_class_count} samples. Setting k_neighbors for SMOTE to {k}.")
         sampler = SMOTE(random_state=RANDOM_STATE, k_neighbors=k)
 
     X_train_resampled, y_train_resampled = sampler.fit_resample(X_train_reshaped, y_train)
@@ -566,15 +596,16 @@ def main():
     # --- Initial Model Training & Evaluation ---
     print("\n--- 7. Training and Evaluating on the initial split ---")
     model = ImprovedCNN(n_features=n_features, n_outputs=N_OUTPUTS, n_timesteps=n_timesteps).to(device)
-    print("\nPyTorch Improved CNN model created and moved to device.")
+    print("PyTorch Improved CNN model created and moved to device.")
     
     learning_rate = 1e-4
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.01)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6, verbose=True)
     criterion = nn.CrossEntropyLoss()
-    early_stopping = EarlyStopping(patience=10, verbose=False, path='checkpoint.pt')
+    checkpoint_path = os.path.join(OUTPUT_DIR, 'checkpoint_initial_split.pt')
+    early_stopping = EarlyStopping(patience=15, verbose=True, path=checkpoint_path)
 
-    print("\nStarting PyTorch model training with Early Stopping and LR Scheduler...")
+    print("\nStarting model training with Early Stopping and LR Scheduler...")
     for epoch in range(EPOCHS):
         model.train()
         running_loss = 0.0
@@ -611,8 +642,8 @@ def main():
             print("Early stopping triggered")
             break
     
-    print("\nModel training complete. Loading best model weights...")
-    model.load_state_dict(torch.load('checkpoint.pt'))
+    print(f"\nModel training complete. Loading best model from '{checkpoint_path}'...")
+    model.load_state_dict(torch.load(checkpoint_path))
     
     model.eval()
     all_preds, all_labels = [], []
@@ -624,12 +655,11 @@ def main():
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
     
-    print('\nClassification Report (Initial Split)')
-    print('---------------------------------------')
+    print('\n=======================================')
+    print('  RESULTS: Initial Train-Test Split')
+    print('=======================================')
     print(classification_report(all_labels, all_preds, labels=range(N_OUTPUTS), target_names=CLASS_NAMES, zero_division=0))
     
-    print('\nConfusion Matrix (Initial Split)')
-    print('--------------------------------')
     cm = confusion_matrix(all_labels, all_preds, labels=range(N_OUTPUTS))
     with np.errstate(divide='ignore', invalid='ignore'):
         cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
@@ -641,11 +671,14 @@ def main():
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
     plt.xticks(rotation=45, ha="right")
-    plt.savefig("confusion_matrix_initial_split.png", bbox_inches='tight')
-    # plt.show()
+    plot_path = os.path.join(OUTPUT_DIR, "confusion_matrix_initial_split.png")
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close() # Close plot to free memory
+    print(f"\nConfusion matrix for initial split saved to '{plot_path}'")
+
 
     # --- Leave-One-Night-Out Cross-Validation ---
-    print("\n--- 8. Starting Leave-One-Night-Out Cross-Validation ---")
+    print("\n\n--- 8. Starting Leave-One-Night-Out (LONO) Cross-Validation ---")
     all_fold_predictions, all_fold_true_labels = [], []
     logo = LeaveOneGroupOut()
     n_folds = logo.get_n_splits(groups=groups)
@@ -653,33 +686,33 @@ def main():
 
     for fold, (train_idx, test_idx) in enumerate(logo.split(X, y, groups)):
         test_night = np.unique(groups[test_idx])[0]
-        print(f"--- FOLD {fold + 1}/{n_folds} (Testing on Night: {test_night}) ---")
+        print(f"\n--- FOLD {fold + 1}/{n_folds} (Testing on Night: {test_night}) ---")
 
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 
-        print(f"  - Original training distribution: {Counter(y_train)}")
+        print(f"  - Original training distribution for this fold: {Counter(y_train)}")
         nsamples, n_timesteps, n_features = X_train.shape
         X_train_reshaped = X_train.reshape((nsamples, n_timesteps * n_features))
         
         class_counts = Counter(y_train)
         minority_classes = {label: count for label, count in class_counts.items() if label != 0}
         
-        if not minority_classes:
-            print("  - No minority classes in this fold's training data. Skipping resampling.")
+        if not minority_classes or all(c == 0 for c in minority_classes.values()):
+            print("  - No minority class samples in this fold's training data. Skipping resampling.")
             X_train_resampled, y_train_resampled = X_train_reshaped, y_train
         else:
-            min_class_count = min(minority_classes.values())
+            min_class_count = min(c for c in minority_classes.values() if c > 0)
             k = min_class_count - 1
             if k < 1:
                 print(f"  - Warning: Smallest minority class has {min_class_count} samples. Using RandomOverSampler.")
                 sampler = RandomOverSampler(random_state=RANDOM_STATE)
             else:
-                print(f"  - Smallest minority class has {min_class_count} samples. Setting k_neighbors for SMOTE to {k}.")
+                print(f"  - Resampling with SMOTE. Smallest minority class has {min_class_count} samples (k_neighbors={k}).")
                 sampler = SMOTE(random_state=RANDOM_STATE, k_neighbors=k)
             X_train_resampled, y_train_resampled = sampler.fit_resample(X_train_reshaped, y_train)
 
-        print(f"  - Resampled training distribution: {Counter(y_train_resampled)}")
+        print(f"  - Resampled training distribution for this fold: {Counter(y_train_resampled)}")
         X_train_resampled = X_train_resampled.reshape(-1, n_timesteps, n_features)
 
         X_train_tensor = torch.from_numpy(X_train_resampled).float()
@@ -688,18 +721,19 @@ def main():
         y_test_tensor = torch.from_numpy(y_test).long()
         
         train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-        val_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+        val_loader = DataLoader(TensorDataset(X_test_tensor, y_test_tensor), batch_size=BATCH_SIZE, shuffle=False)
         train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
         
         model = ImprovedCNN(n_features=n_features, n_outputs=N_OUTPUTS, n_timesteps=n_timesteps).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-3)
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6)
         criterion = nn.CrossEntropyLoss()
-        early_stopping = EarlyStopping(patience=20, verbose=False, path=f'lono_checkpoint_fold_{fold}.pt')
+        checkpoint_path_fold = os.path.join(OUTPUT_DIR, f'lono_checkpoint_fold_attn_{fold}.pt')
+        early_stopping = EarlyStopping(patience=15, verbose=False, path=checkpoint_path_fold)
         
+        print("  - Starting training for this fold...")
         for epoch in range(EPOCHS):
             model.train()
-            running_loss = 0.0
             for inputs, labels in train_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
                 optimizer.zero_grad()
@@ -708,7 +742,6 @@ def main():
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
                 optimizer.step()
-                running_loss += loss.item()
             
             model.eval()
             val_loss = 0.0
@@ -726,9 +759,9 @@ def main():
                 print(f"  - Early stopping triggered at epoch {epoch + 1}.")
                 break
 
-        print(f"  - Training complete for fold {fold + 1}.")
+        print(f"  - Training complete. Loading best model for fold {fold + 1} from '{checkpoint_path_fold}'.")
         
-        model.load_state_dict(torch.load(f'lono_checkpoint_fold_{fold}.pt'))
+        model.load_state_dict(torch.load(checkpoint_path_fold))
         model.eval()
         fold_preds, fold_labels = [], []
         with torch.no_grad():
@@ -741,12 +774,12 @@ def main():
         
         all_fold_predictions.extend(fold_preds)
         all_fold_true_labels.extend(fold_labels)
-        print(f"  - Evaluation complete for fold {fold + 1}.\n")
+        print(f"  - Evaluation complete for fold {fold + 1}.")
 
     # --- FINAL AGGREGATED LONO EVALUATION ---
     print("\n====================================================")
-    print("Leave-One-Night-Out Cross-Validation Complete.")
-    print("Aggregated Results Across All Folds:")
+    print("    Leave-One-Night-Out Cross-Validation Complete.")
+    print("        Aggregated Results Across All Folds:")
     print("====================================================")
     
     print(classification_report(all_fold_true_labels, all_fold_predictions, labels=range(N_OUTPUTS), target_names=CLASS_NAMES, zero_division=0))
@@ -762,8 +795,14 @@ def main():
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
     plt.xticks(rotation=45, ha="right")
-    plt.savefig("confusion_matrix_lono_aggregated.png", bbox_inches='tight')
-    # plt.show()
+    plot_path = os.path.join(OUTPUT_DIR, "confusion_matrix_lono_aggregated.png")
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close() # Close plot to free memory
+    print(f"\nAggregated LONO confusion matrix saved to '{plot_path}'")
+    
+    print("\n======================================================================")
+    print("=== SCRIPT EXECUTION FINISHED ===")
+    print("======================================================================")
 
 
 # ==============================================================================
