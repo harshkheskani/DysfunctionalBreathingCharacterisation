@@ -1,0 +1,77 @@
+2025-07-06 18:14:55,232 - INFO - Using device: cuda
+2025-07-06 18:14:55,235 - INFO - Loading and processing data...
+2025-07-06 18:14:55,243 - INFO - Found 9 event files.
+2025-07-06 18:14:55,254 - INFO - Processing session: 25-04-2025
+2025-07-06 18:15:07,727 - INFO - Processing session: 16-04-2025
+2025-07-06 18:15:18,926 - INFO - Processing session: 24-04-2025
+2025-07-06 18:15:28,836 - INFO - Processing session: 26-04-2025
+2025-07-06 18:15:36,617 - INFO - Processing session: 11-05-2025
+2025-07-06 18:15:46,753 - INFO - Processing session: 10-05-2025
+2025-07-06 18:15:49,633 - INFO - Processing session: 08-05-2025
+2025-07-06 18:15:58,412 - INFO - Processing session: 05-04-2025
+2025-07-06 18:16:08,505 - INFO - Processing session: 04-04-2025
+2025-07-06 18:16:19,524 - INFO - Data loaded. Raw DataFrame shape: (2139235, 29)
+2025-07-06 18:16:19,524 - INFO - One-hot encoding 'activityType'...
+2025-07-06 18:16:21,020 - INFO - Total number of features after encoding: 28
+2025-07-06 18:16:21,020 - INFO - Imputing missing values in feature columns...
+2025-07-06 18:16:23,666 - INFO - Starting windowing process...
+2025-07-06 18:18:02,045 - INFO - Windowing complete. X shape: (28868, 375, 28), y shape: (28868,)
+2025-07-06 18:18:02,053 - INFO - Class distribution in windows: Counter({np.int64(0): 27958, np.int64(1): 910})
+2025-07-06 18:18:20,300 - INFO - Starting WGAN-GP training with improved models...
+2025-07-06 18:18:20,301 - INFO - Generator: Generator(
+  (map_z_to_hidden): Linear(in_features=64, out_features=512, bias=True)
+  (map_z_to_cell): Linear(in_features=64, out_features=512, bias=True)
+  (lstm): LSTM(28, 256, num_layers=2, batch_first=True, dropout=0.2)
+  (out): Sequential(
+    (0): Linear(in_features=256, out_features=128, bias=True)
+    (1): ReLU()
+    (2): Linear(in_features=128, out_features=28, bias=True)
+    (3): Tanh()
+  )
+)
+2025-07-06 18:18:20,301 - INFO - Critic: Critic(
+  (lstm): LSTM(28, 128, num_layers=2, batch_first=True, dropout=0.2, bidirectional=True)
+  (output): Sequential(
+    (0): Linear(in_features=256, out_features=128, bias=True)
+    (1): LeakyReLU(negative_slope=0.2, inplace=True)
+    (2): Linear(in_features=128, out_features=64, bias=True)
+    (3): LeakyReLU(negative_slope=0.2, inplace=True)
+    (4): Linear(in_features=64, out_features=1, bias=True)
+  )
+)
+/home/s1978431/miniconda3/envs/diss/lib/python3.11/site-packages/torch/autograd/graph.py:824: UserWarning: Attempting to run cuBLAS, but there was no current CUDA context! Attempting to set the primary context... (Triggered internally at /pytorch/aten/src/ATen/cuda/CublasHandlePool.cpp:181.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+2025-07-06 18:48:20,491 - INFO - [Epoch     5/5000] | Avg C_loss: -61.6353 | Avg G_loss: 87.7117 | Avg W_dist: 91.6255 | LR: 0.000195
+2025-07-06 19:18:22,847 - INFO - [Epoch    10/5000] | Avg C_loss: -40.8166 | Avg G_loss: 191.0592 | Avg W_dist: 60.6026 | LR: 0.000190
+2025-07-06 19:48:21,190 - INFO - [Epoch    15/5000] | Avg C_loss: -57.3202 | Avg G_loss: 61.8032 | Avg W_dist: 82.9028 | LR: 0.000186
+2025-07-06 20:18:21,650 - INFO - [Epoch    20/5000] | Avg C_loss: -61.5132 | Avg G_loss: 192.5806 | Avg W_dist: 94.0210 | LR: 0.000181
+2025-07-06 20:48:21,558 - INFO - [Epoch    25/5000] | Avg C_loss: -66.3374 | Avg G_loss: 147.0070 | Avg W_dist: 101.3262 | LR: 0.000176
+2025-07-06 21:18:22,772 - INFO - [Epoch    30/5000] | Avg C_loss: -69.4223 | Avg G_loss: 205.0695 | Avg W_dist: 106.2452 | LR: 0.000172
+2025-07-06 21:48:23,463 - INFO - [Epoch    35/5000] | Avg C_loss: 42.1300 | Avg G_loss: 109.5859 | Avg W_dist: 95.2790 | LR: 0.000168
+2025-07-06 22:18:22,339 - INFO - [Epoch    40/5000] | Avg C_loss: -64.9704 | Avg G_loss: 154.2491 | Avg W_dist: 98.6611 | LR: 0.000164
+2025-07-06 22:48:22,595 - INFO - [Epoch    45/5000] | Avg C_loss: -60.7433 | Avg G_loss: 141.3523 | Avg W_dist: 93.1770 | LR: 0.000160
+2025-07-06 23:18:21,556 - INFO - [Epoch    50/5000] | Avg C_loss: -67.7606 | Avg G_loss: 158.5603 | Avg W_dist: 100.2048 | LR: 0.000156
+2025-07-06 23:48:20,776 - INFO - [Epoch    55/5000] | Avg C_loss: -63.5441 | Avg G_loss: 57.6019 | Avg W_dist: 92.8565 | LR: 0.000152
+2025-07-07 00:18:23,594 - INFO - [Epoch    60/5000] | Avg C_loss: -68.7716 | Avg G_loss: 104.0648 | Avg W_dist: 102.2029 | LR: 0.000148
+2025-07-07 00:48:25,243 - INFO - [Epoch    65/5000] | Avg C_loss: -70.0374 | Avg G_loss: 158.4598 | Avg W_dist: 103.9327 | LR: 0.000144
+2025-07-07 01:18:25,063 - INFO - [Epoch    70/5000] | Avg C_loss: -67.7097 | Avg G_loss: 149.5673 | Avg W_dist: 102.1193 | LR: 0.000141
+2025-07-07 01:48:24,121 - INFO - [Epoch    75/5000] | Avg C_loss: -66.8205 | Avg G_loss: 113.9465 | Avg W_dist: 98.6687 | LR: 0.000137
+2025-07-07 02:18:22,442 - INFO - [Epoch    80/5000] | Avg C_loss: -60.2592 | Avg G_loss: 132.7646 | Avg W_dist: 87.4201 | LR: 0.000134
+2025-07-07 02:48:18,072 - INFO - [Epoch    85/5000] | Avg C_loss: -52.4388 | Avg G_loss: 136.1623 | Avg W_dist: 78.0094 | LR: 0.000131
+2025-07-07 03:18:17,213 - INFO - [Epoch    90/5000] | Avg C_loss: -50.7752 | Avg G_loss: 131.9591 | Avg W_dist: 74.6890 | LR: 0.000127
+2025-07-07 03:48:20,633 - INFO - [Epoch    95/5000] | Avg C_loss: -50.0898 | Avg G_loss: 136.2645 | Avg W_dist: 74.3582 | LR: 0.000124
+2025-07-07 04:18:19,488 - INFO - [Epoch   100/5000] | Avg C_loss: -39.9178 | Avg G_loss: 44.6541 | Avg W_dist: 57.9741 | LR: 0.000121
+2025-07-07 04:48:18,673 - INFO - [Epoch   105/5000] | Avg C_loss: -51.9712 | Avg G_loss: 85.1192 | Avg W_dist: 78.3990 | LR: 0.000118
+2025-07-07 05:18:12,532 - INFO - [Epoch   110/5000] | Avg C_loss: -41.8307 | Avg G_loss: 87.4525 | Avg W_dist: 61.0686 | LR: 0.000115
+2025-07-07 05:48:09,415 - INFO - [Epoch   115/5000] | Avg C_loss: -41.8417 | Avg G_loss: 89.8529 | Avg W_dist: 60.2544 | LR: 0.000112
+2025-07-07 06:18:06,687 - INFO - [Epoch   120/5000] | Avg C_loss: -35.5146 | Avg G_loss: 101.5939 | Avg W_dist: 50.0769 | LR: 0.000110
+2025-07-07 06:48:08,027 - INFO - [Epoch   125/5000] | Avg C_loss: -41.7338 | Avg G_loss: 88.1476 | Avg W_dist: 59.7543 | LR: 0.000107
+2025-07-07 07:18:09,672 - INFO - [Epoch   130/5000] | Avg C_loss: -52.4078 | Avg G_loss: 98.7297 | Avg W_dist: 73.9995 | LR: 0.000104
+2025-07-07 07:48:06,743 - INFO - [Epoch   135/5000] | Avg C_loss: -39.6253 | Avg G_loss: 92.2878 | Avg W_dist: 57.7875 | LR: 0.000102
+2025-07-07 08:18:05,465 - INFO - [Epoch   140/5000] | Avg C_loss: -34.0920 | Avg G_loss: 86.4908 | Avg W_dist: 50.2194 | LR: 0.000099
+2025-07-07 08:48:04,312 - INFO - [Epoch   145/5000] | Avg C_loss: -39.3862 | Avg G_loss: 97.4048 | Avg W_dist: 57.0019 | LR: 0.000097
+2025-07-07 09:18:02,948 - INFO - [Epoch   150/5000] | Avg C_loss: -39.2944 | Avg G_loss: 79.9095 | Avg W_dist: 55.7427 | LR: 0.000094
+2025-07-07 09:48:01,945 - INFO - [Epoch   155/5000] | Avg C_loss: -39.2206 | Avg G_loss: 85.3007 | Avg W_dist: 57.7890 | LR: 0.000092
+2025-07-07 10:18:03,198 - INFO - [Epoch   160/5000] | Avg C_loss: -36.0084 | Avg G_loss: 82.4787 | Avg W_dist: 54.8739 | LR: 0.000090
+2025-07-07 10:48:06,495 - INFO - [Epoch   165/5000] | Avg C_loss: -42.3981 | Avg G_loss: 74.1090 | Avg W_dist: 61.2370 | LR: 0.000087
+slurmstepd-landonia08: error: *** JOB 2041395 ON landonia08 CANCELLED AT 2025-07-07T11:10:04 ***
