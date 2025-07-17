@@ -543,7 +543,7 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-3)
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6)
         criterion = nn.CrossEntropyLoss()
-        early_stopping = EarlyStopping(patience=20, verbose=False, path=f'lono_checkpoint_fold_attn_{fold}.pt')
+        early_stopping = EarlyStopping(patience=20, verbose=False, path=f'lono_checkpoint_fold_lstm_simple_{fold}.pt')
         
         for epoch in range(EPOCHS):
             model.train()
