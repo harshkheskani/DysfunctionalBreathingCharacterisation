@@ -320,8 +320,8 @@ def main():
                         help='Base directory containing event_exports, respeck, and nasal_files folders.')
     parser.add_argument('--base_output_dir', type=str, required=True,
                         help='Base directory to save results (e.g., plots, checkpoints).')
-    parser.add_argument('--epochs', type=int, default=150,
-                        help='Number of training epochs for final model (default: 150).')
+    parser.add_argument('--epochs', type=int, default=120,
+                        help='Number of training epochs for final model (default: 120).')
     parser.add_argument('--batch_size', type=int, default=64,
                         help='Batch size for training (default: 64).')
     parser.add_argument('--learning_rate', type=float, default=1e-4,
