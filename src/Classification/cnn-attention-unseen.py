@@ -669,7 +669,7 @@ def main():
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6)
         criterion = nn.CrossEntropyLoss()
         checkpoint_path = os.path.join(args.base_output_dir, f'fixed_training_checkpoint_fold_{fold}.pt')
-        early_stopping = EarlyStopping(patience=20, verbose=False, path=checkpoint_path)
+        early_stopping = EarlyStopping(patience=10, verbose=False, path=checkpoint_path)
         
         max_grad_norm = 1.0
         
