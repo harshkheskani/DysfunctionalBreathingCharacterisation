@@ -17,6 +17,49 @@ import argparse
 from datetime import datetime
 import pickle
 
+class ProductionEarlyStopping:
+    """
+    Early stopping for production training based on k-fold validation results.
+    Uses training loss plateau detection with guidance from cross-validation.
+    """
+    def __init__(self, target_epochs=80, patience=15, min_delta=0.001, min_epochs=30):
+        self.target_epochs = target_epochs  # Based on k-fold CV results
+        self.patience = patience
+        self.min_delta = min_delta
+        self.min_epochs = min_epochs
+        self.counter = 0
+        self.best_loss = float('inf')
+        self.epoch = 0
+        self.should_stop = False
+        
+    def __call__(self, loss):
+        self.epoch += 1
+        
+        # Don't stop before minimum epochs
+        if self.epoch < self.min_epochs:
+            return False
+            
+        # Primary stopping: reached target epochs from k-fold
+        if self.epoch >= self.target_epochs:
+            print(f"Reached target epochs ({self.target_epochs}) based on k-fold CV results. Stopping training.")
+            self.should_stop = True
+            return True
+            
+        # Secondary stopping: training loss plateau
+        if loss < self.best_loss - self.min_delta:
+            self.best_loss = loss
+            self.counter = 0
+        else:
+            self.counter += 1
+            
+        # If we're past 70% of target epochs and loss is plateauing, stop
+        if self.epoch > (self.target_epochs * 0.7) and self.counter >= self.patience:
+            print(f"Training loss plateaued for {self.patience} epochs after epoch {self.epoch - self.patience}. Stopping training.")
+            self.should_stop = True
+            return True
+            
+        return False
+
 class ChannelAttention(nn.Module):
     """Channel attention mechanism to focus on important features"""
     def __init__(self, channels, reduction=16):
@@ -309,6 +352,81 @@ def save_model_artifacts(model, scaler_info, config, output_dir):
     print(f"Model configuration saved to: {config_path}")
     return model_path, config_path
 
+def train_final_model_with_early_stopping(final_model, final_train_loader, device, args):
+    """
+    Train final model with early stopping based on k-fold results.
+    """
+    final_optimizer = torch.optim.Adam(final_model.parameters(), lr=args.learning_rate, weight_decay=1e-3)
+    final_scheduler = ReduceLROnPlateau(final_optimizer, mode='min', factor=0.2, patience=10, min_lr=1e-6)
+    final_criterion = nn.CrossEntropyLoss()
+    max_grad_norm = 1.0
+    
+    # Initialize early stopping based on your k-fold results
+    # Average stopping epoch from your k-fold: ~80 epochs
+    early_stopping = ProductionEarlyStopping(
+        target_epochs=80,  # Based on your k-fold average
+        patience=15,       # Allow some patience for plateau detection
+        min_delta=0.001,   # Minimum improvement to reset counter
+        min_epochs=40      # Don't stop before this many epochs
+    )
+    
+    training_losses = []
+    training_accuracies = []
+    
+    print(f"Starting final model training (max {args.epochs} epochs)...")
+    print(f"Early stopping target: {early_stopping.target_epochs} epochs (based on k-fold CV)")
+    print("Note: No validation set is used as we're training on all available data.")
+    
+    for epoch in range(args.epochs):
+        final_model.train()
+        running_loss = 0.0
+        correct_predictions = 0
+        total_predictions = 0
+        
+        for batch_idx, (inputs, labels) in enumerate(final_train_loader):
+            inputs, labels = inputs.to(device), labels.to(device)
+            
+            final_optimizer.zero_grad()
+            outputs = final_model(inputs)
+            loss = final_criterion(outputs, labels)
+            loss.backward()
+            
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(final_model.parameters(), max_grad_norm)
+            final_optimizer.step()
+            
+            running_loss += loss.item()
+            
+            # Calculate training accuracy
+            _, predicted = torch.max(outputs.data, 1)
+            total_predictions += labels.size(0)
+            correct_predictions += (predicted == labels).sum().item()
+        
+        avg_train_loss = running_loss / len(final_train_loader)
+        train_accuracy = 100 * correct_predictions / total_predictions
+        training_losses.append(avg_train_loss)
+        training_accuracies.append(train_accuracy)
+        
+        # Update learning rate
+        final_scheduler.step(avg_train_loss)
+        
+        # Check early stopping
+        if early_stopping(avg_train_loss):
+            print(f"Early stopping triggered at epoch {epoch + 1}")
+            break
+        
+        if (epoch + 1) % 10 == 0 or epoch == 0:
+            current_lr = final_optimizer.param_groups[0]['lr']
+            print(f"Epoch [{epoch+1}/{args.epochs}], "
+                  f"Train Loss: {avg_train_loss:.4f}, "
+                  f"Train Accuracy: {train_accuracy:.2f}%, "
+                  f"LR: {current_lr:.2e}")
+    
+    final_epoch = len(training_losses)
+    print(f"\nFinal model training complete! Trained for {final_epoch} epochs.")
+    
+    return training_losses, training_accuracies, final_epoch
+
 # ==============================================================================
 # 3. Main Execution Block
 # ==============================================================================
@@ -320,8 +438,8 @@ def main():
                         help='Base directory containing event_exports, respeck, and nasal_files folders.')
     parser.add_argument('--base_output_dir', type=str, required=True,
                         help='Base directory to save results (e.g., plots, checkpoints).')
-    parser.add_argument('--epochs', type=int, default=120,
-                        help='Number of training epochs for final model (default: 120).')
+    parser.add_argument('--epochs', type=int, default=80,
+                        help='Number of training epochs for final model (default: 80).')
     parser.add_argument('--batch_size', type=int, default=64,
                         help='Batch size for training (default: 64).')
     parser.add_argument('--learning_rate', type=float, default=1e-4,
@@ -564,61 +682,65 @@ def main():
     print(f"\nFinal model initialized:")
     print(f"  - Total parameters: {total_params:,}")
     print(f"  - Trainable parameters: {trainable_params:,}")
+
+    training_losses, training_accuracies, final_epoch = train_final_model_with_early_stopping(
+        final_model, final_train_loader, device, args
+    )
     
     # Final model training configuration
-    final_optimizer = torch.optim.Adam(final_model.parameters(), lr=args.learning_rate, weight_decay=1e-3)
-    final_scheduler = ReduceLROnPlateau(final_optimizer, mode='min', factor=0.2, patience=10, min_lr=1e-6)
-    final_criterion = nn.CrossEntropyLoss()
-    max_grad_norm = 1.0
+    # final_optimizer = torch.optim.Adam(final_model.parameters(), lr=args.learning_rate, weight_decay=1e-3)
+    # final_scheduler = ReduceLROnPlateau(final_optimizer, mode='min', factor=0.2, patience=10, min_lr=1e-6)
+    # final_criterion = nn.CrossEntropyLoss()
+    # max_grad_norm = 1.0
     
-    # Train final model
-    print(f"\nStarting final model training for {args.epochs} epochs...")
-    print("Note: No validation set is used as we're training on all available data.")
+    # # Train final model
+    # print(f"\nStarting final model training for {args.epochs} epochs...")
+    # print("Note: No validation set is used as we're training on all available data.")
     
-    training_losses = []
-    training_accuracies = []
+    # training_losses = []
+    # training_accuracies = []
     
-    for epoch in range(args.epochs):
-        final_model.train()
-        running_loss = 0.0
-        correct_predictions = 0
-        total_predictions = 0
+    # for epoch in range(args.epochs):
+    #     final_model.train()
+    #     running_loss = 0.0
+    #     correct_predictions = 0
+    #     total_predictions = 0
         
-        for batch_idx, (inputs, labels) in enumerate(final_train_loader):
-            inputs, labels = inputs.to(device), labels.to(device)
+    #     for batch_idx, (inputs, labels) in enumerate(final_train_loader):
+    #         inputs, labels = inputs.to(device), labels.to(device)
             
-            final_optimizer.zero_grad()
-            outputs = final_model(inputs)
-            loss = final_criterion(outputs, labels)
-            loss.backward()
+    #         final_optimizer.zero_grad()
+    #         outputs = final_model(inputs)
+    #         loss = final_criterion(outputs, labels)
+    #         loss.backward()
             
-            # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(final_model.parameters(), max_grad_norm)
-            final_optimizer.step()
+    #         # Gradient clipping
+    #         torch.nn.utils.clip_grad_norm_(final_model.parameters(), max_grad_norm)
+    #         final_optimizer.step()
             
-            running_loss += loss.item()
+    #         running_loss += loss.item()
             
-            # Calculate training accuracy
-            _, predicted = torch.max(outputs.data, 1)
-            total_predictions += labels.size(0)
-            correct_predictions += (predicted == labels).sum().item()
+    #         # Calculate training accuracy
+    #         _, predicted = torch.max(outputs.data, 1)
+    #         total_predictions += labels.size(0)
+    #         correct_predictions += (predicted == labels).sum().item()
         
-        avg_train_loss = running_loss / len(final_train_loader)
-        train_accuracy = 100 * correct_predictions / total_predictions
-        training_losses.append(avg_train_loss)
-        training_accuracies.append(train_accuracy)
+    #     avg_train_loss = running_loss / len(final_train_loader)
+    #     train_accuracy = 100 * correct_predictions / total_predictions
+    #     training_losses.append(avg_train_loss)
+    #     training_accuracies.append(train_accuracy)
         
-        # Update learning rate (using training loss since we don't have validation)
-        final_scheduler.step(avg_train_loss)
+    #     # Update learning rate (using training loss since we don't have validation)
+    #     final_scheduler.step(avg_train_loss)
         
-        if (epoch + 1) % 10 == 0 or epoch == 0:
-            current_lr = final_optimizer.param_groups[0]['lr']
-            print(f"Epoch [{epoch+1}/{args.epochs}], "
-                  f"Train Loss: {avg_train_loss:.4f}, "
-                  f"Train Accuracy: {train_accuracy:.2f}%, "
-                  f"LR: {current_lr:.2e}")
+    #     if (epoch + 1) % 10 == 0 or epoch == 0:
+    #         current_lr = final_optimizer.param_groups[0]['lr']
+    #         print(f"Epoch [{epoch+1}/{args.epochs}], "
+    #               f"Train Loss: {avg_train_loss:.4f}, "
+    #               f"Train Accuracy: {train_accuracy:.2f}%, "
+    #               f"LR: {current_lr:.2e}")
     
-    print("\nFinal model training complete!")
+    # print("\nFinal model training complete!")
     
     # Save final model and artifacts
     print(f"\n--- 6. Saving final model and configuration ---")
@@ -634,9 +756,12 @@ def main():
         'overlap_percentage': OVERLAP_PERCENTAGE,
         'event_group_to_label': EVENT_GROUP_TO_LABEL,
         'label_to_event_group_name': LABEL_TO_EVENT_GROUP_NAME,
-        'training_epochs': args.epochs,
+        'training_epochs': final_epoch,
         'batch_size': args.batch_size,
         'learning_rate': args.learning_rate,
+        'actual_training_epochs': final_epoch,
+        'target_epochs_from_cv': 80,
+        'early_stopping_triggered': final_epoch < args.epochs,
         'final_train_loss': training_losses[-1],
         'final_train_accuracy': training_accuracies[-1]
     }
@@ -692,7 +817,7 @@ def main():
     print(f"Model Architecture: ImprovedCNN with Attention & Multi-Scale Convolutions")
     print(f"Total Parameters: {total_params:,}")
     print(f"Trainable Parameters: {trainable_params:,}")
-    print(f"Training Epochs: {args.epochs}")
+    print(f"Training Epochs: {final_epoch}")
     print(f"Batch Size: {args.batch_size}")
     print(f"Learning Rate: {args.learning_rate}")
     print(f"Final Training Loss: {training_losses[-1]:.4f}")
@@ -748,7 +873,7 @@ def main():
     with open(metrics_path, 'w') as f:
         f.write("FINAL MODEL TRAINING METRICS\n")
         f.write("="*50 + "\n\n")
-        f.write(f"Training Epochs: {args.epochs}\n")
+        f.write(f"Training Epochs: {final_epoch}\n")
         f.write(f"Final Training Loss: {training_losses[-1]:.6f}\n")
         f.write(f"Final Training Accuracy: {training_accuracies[-1]:.2f}%\n")
         f.write(f"Total Parameters: {total_params:,}\n")
@@ -763,6 +888,8 @@ def main():
     
     print(f"\n" + "="*80)
     print("TRAINING COMPLETE!")
+    print(f"\nActual training epochs: {final_epoch} (target was {args.epochs})")
+    print(f"Early stopping {'was' if final_epoch < args.epochs else 'was not'} triggered")
     print("="*80)
     print(f"Your final production model is ready for deployment!")
     print(f"Use the saved model weights and configuration for inference on new data.")
