@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
 import warnings
-import pytz # <-- New import for timezone handling
+import pytz 
 
 warnings.filterwarnings('ignore')
 
@@ -70,7 +70,6 @@ class ApneaDetector:
         self.model_path = model_path
         self.device = torch.device('cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu'))
         print(f"Using device: {self.device}")
-        # <<< NEW: Define Scotland timezone
         self.scotland_tz = pytz.timezone('Europe/London')
         self.model = self._load_model()
 
@@ -88,10 +87,9 @@ class ApneaDetector:
         print("Model loaded successfully and set to evaluation mode.")
         return model
 
-    # <<< NEW: Function to filter data for the sleep window
+
     def _filter_sleep_window(self, df):
         """Filters DataFrame to include data only between 9 PM and 10 AM Scotland time."""
-        # The timestamp from the file is already the correct one to use
         timestamp_col = 'timestamp_unix'
         if timestamp_col not in df.columns:
             print(f"  - Warning: '{timestamp_col}' not found. Cannot filter by sleep window. Processing all data.")
@@ -99,41 +97,32 @@ class ApneaDetector:
 
         print("Filtering data for sleep window (9pm - 10am Scotland time)...")
         
-        # Convert Unix timestamps (in milliseconds) to datetime objects in Scotland's timezone
         df['datetime_scotland'] = pd.to_datetime(df[timestamp_col], unit='ms', utc=True).dt.tz_convert(self.scotland_tz)
         
-        # Get the hour of the day
         hour = df['datetime_scotland'].dt.hour
         
-        # The sleep window covers hours from 9 PM (21) to 10 AM (9) the next day.
-        # This is equivalent to hours NOT in the range [10, 11, ..., 20].
-        is_in_sleep_window = ~hour.between(10, 20)
+        # The sleep window is from 9 PM (21:00) until 9:59 AM the next day.
+        # This means we keep hours that are 21 or greater OR less than 10.
+        is_in_sleep_window = (hour >= 21) | (hour < 10)
         
         filtered_df = df[is_in_sleep_window].copy()
         
         print(f"  - Original data points: {len(df)}")
         print(f"  - Sleep window data points: {len(filtered_df)}")
         
-        # Clean up the temporary datetime column
         filtered_df.drop(columns=['datetime_scotland'], inplace=True)
-        
         return filtered_df
 
-    def _preprocess_single_file(self, file_path):
-        """Loads and preprocesses a single Respeck CSV file."""
+    # <<< MODIFIED: This function now only loads and does initial prep. NO SCALING here.
+    def _load_and_prep_single_file(self, file_path):
+        """Loads and prepares a single Respeck CSV file without scaling."""
         try:
-            df = pd.read_csv(file_path)
-
-            # <<< MODIFIED: Rename the timestamp column used for everything
+            # <<< FIX: Tell pandas to recognize 'Na' as a missing value upon loading.
+            df = pd.read_csv(file_path, na_values=['Na'])
+            
             df.rename(columns={'interpolatedPhoneTimestamp': 'timestamp_unix'}, inplace=True)
             
-            # --- Perform sleep window filtering first ---
-            df = self._filter_sleep_window(df)
-            if df.empty:
-                print("  - No data left after filtering for sleep window.")
-                return None
-            
-            # Ensure timestamp is numeric
+            # Ensure timestamp is numeric before any filtering
             df['timestamp_unix'] = pd.to_numeric(df['timestamp_unix'], errors='coerce')
             df.dropna(subset=['timestamp_unix'], inplace=True)
             df['timestamp_unix'] = df['timestamp_unix'].astype('int64')
@@ -141,15 +130,11 @@ class ApneaDetector:
             if not all(col in df.columns for col in FEATURE_COLUMNS):
                 print(f"  - Missing one or more feature columns in {file_path}. Skipping.")
                 return None
-                
-            for col in FEATURE_COLUMNS:
-                if df[col].isnull().sum() > 0:
-                    df[col].ffill(inplace=True)
-                    df[col].bfill(inplace=True)
-
-            scaler = StandardScaler()
-            df[FEATURE_COLUMNS] = scaler.fit_transform(df[FEATURE_COLUMNS])
             
+            # <<< NEW: After loading with na_values, ensure feature columns are numeric
+            for col in FEATURE_COLUMNS:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
             return df
         except Exception as e:
             print(f"  - Error processing file {file_path}: {e}")
@@ -182,6 +167,7 @@ class ApneaDetector:
         
         return np.array(all_predictions)
 
+    # <<< MODIFIED: Main logic refactored to ensure correct normalization strategy.
     def process_patient_folder(self, patient_folder_path):
         respeck_folder = os.path.join(patient_folder_path, 'Respeck')
         if not os.path.isdir(respeck_folder):
@@ -194,19 +180,38 @@ class ApneaDetector:
             print(f"  - No '*.csv' files found in {respeck_folder}.")
             return 0, []
 
+        # --- STEP 1: Load and concatenate all data for the patient FIRST ---
         all_patient_dfs = []
         for file_path in respeck_files:
-            processed_df = self._preprocess_single_file(file_path)
-            if processed_df is not None:
-                all_patient_dfs.append(processed_df)
+            prepped_df = self._load_and_prep_single_file(file_path)
+            if prepped_df is not None:
+                all_patient_dfs.append(prepped_df)
         
         if not all_patient_dfs:
-            print("  - No valid data could be processed for this patient.")
+            print("  - No valid data could be loaded for this patient.")
             return 0, []
         
         full_df = pd.concat(all_patient_dfs, ignore_index=True)
         full_df.sort_values('timestamp_unix', inplace=True)
         
+        # --- STEP 2: Preprocess the COMBINED DataFrame ---
+        full_df = self._filter_sleep_window(full_df)
+        if full_df.empty:
+            print("  - No data left after filtering for sleep window.")
+            return 0, []
+            
+        for col in FEATURE_COLUMNS:
+            if full_df[col].isnull().sum() > 0:
+                full_df[col].ffill(inplace=True)
+                full_df[col].bfill(inplace=True)
+
+        # <<< CRITICAL FIX: Apply StandardScaler to the entire patient dataset at once.
+        print("  - Applying per-patient normalization (the correct strategy)...")
+        scaler = StandardScaler()
+        full_df[FEATURE_COLUMNS] = scaler.fit_transform(full_df[FEATURE_COLUMNS])
+        print("  - Normalization complete.")
+        
+        # --- STEP 3: Create windows from the fully preprocessed data ---
         windows_np, timestamps_ms = self._create_windows_with_timestamps(full_df)
         
         if len(windows_np) == 0:
@@ -215,6 +220,7 @@ class ApneaDetector:
             
         print(f"  - Created {len(windows_np)} windows for inference.")
         
+        # --- STEP 4: Run inference ---
         predictions_np = self._run_inference_in_batches(windows_np)
         
         apnea_timestamps = []
@@ -252,35 +258,8 @@ def main():
             'timestamps_ms': apnea_timestamps
         }
         print(f"  - Found {apnea_count} '{LABEL_TO_EVENT_GROUP_NAME[APNEA_LABEL]}' events.")
-            # --- MODIFIED: Final Report and CSV Export ---
-        print("\n" + "="*50)
-        print("           FINAL APNEA DETECTION SUMMARY")
-        print("="*50)
 
-        for patient_id, result in all_results.items():
-            print(f"\nPatient: {patient_id}")
-            print(f"  Total '{LABEL_TO_EVENT_GROUP_NAME[APNEA_LABEL]}' events detected: {result['count']}")
-
-            # Only create a CSV file if events were found
-            if result['count'] > 0:
-                # 1. Extract the patient prefix (e.g., 'PRB001') from the full folder name
-                patient_prefix = patient_id.split(' ')[0]
-                csv_filename = f"{patient_prefix}_osa.csv"
-
-                # 2. Convert millisecond timestamps to a pandas DatetimeIndex for easy formatting
-                timestamps_ms = result['timestamps_ms']
-                dt_index = pd.to_datetime(timestamps_ms, unit='ms', utc=True).tz_convert('Europe/London')
-
-                # 3. Create a DataFrame with the required 'date' and 'time' columns
-                event_df = pd.DataFrame({
-                    'date': dt_index.strftime('%Y-%m-%d'),
-                    'time': dt_index.strftime('%H:%M:%S')
-                })
-
-                # 4. Save the DataFrame to a CSV file, without the index column
-                event_df.to_csv(csv_filename, index=False)
-                print(f"  - Saved {result['count']} event timestamps to '{csv_filename}'")
-
+    # --- Final Report and CSV Export ---
     print("\n" + "="*50)
     print("           FINAL APNEA DETECTION SUMMARY")
     print("="*50)
@@ -288,12 +267,21 @@ def main():
     for patient_id, result in all_results.items():
         print(f"\nPatient: {patient_id}")
         print(f"  Total '{LABEL_TO_EVENT_GROUP_NAME[APNEA_LABEL]}' events detected: {result['count']}")
+
         if result['count'] > 0:
-            print("  Event Timestamps (YYYY-MM-DD HH:MM:S, Scotland Time):")
-            for ts_ms in result['timestamps_ms']:
-                # Convert Unix timestamp (ms) to readable Scotland time
-                readable_time = pd.to_datetime(ts_ms, unit='ms', utc=True).tz_convert('Europe/London').strftime('%Y-%m-%d %H:%M:%S')
-                print(f"    - {readable_time}")
+            patient_prefix = patient_id.split(' ')[0]
+            csv_filename = f"{patient_prefix}_osa.csv"
+
+            timestamps_ms = result['timestamps_ms']
+            dt_index = pd.to_datetime(timestamps_ms, unit='ms', utc=True).tz_convert('Europe/London')
+
+            event_df = pd.DataFrame({
+                'date': dt_index.strftime('%Y-%m-%d'),
+                'time': dt_index.strftime('%H:%M:%S')
+            })
+
+            event_df.to_csv(csv_filename, index=False)
+            print(f"  - Saved {result['count']} event timestamps to '{csv_filename}'")
 
 if __name__ == "__main__":
     main()
