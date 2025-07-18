@@ -199,16 +199,16 @@ class ImprovedCNN(nn.Module):
         self.pool1 = nn.MaxPool1d(2)
         
         # Residual blocks
-        self.res_block1 = ResidualBlock(128, 128, kernel_size=5, dropout=0.15)
-        self.res_block2 = ResidualBlock(128, 256, kernel_size=5, stride=2, dropout=0.15)
+        self.res_block1 = ResidualBlock(128, 128, kernel_size=5, dropout=0.3)
+        self.res_block2 = ResidualBlock(128, 256, kernel_size=5, stride=2, dropout=0.3)
         
         # Second multi-scale layer
         self.multiscale2 = MultiScaleConv(256, 256)
         self.pool2 = nn.MaxPool1d(2)
         
         # More residual blocks
-        self.res_block3 = ResidualBlock(256, 256, kernel_size=3, dropout=0.2)
-        self.res_block4 = ResidualBlock(256, 512, kernel_size=3, stride=2, dropout=0.2)
+        self.res_block3 = ResidualBlock(256, 256, kernel_size=3, dropout=0.4)
+        self.res_block4 = ResidualBlock(256, 512, kernel_size=3, stride=2, dropout=0.4)
         
         # Attention mechanisms
         self.channel_attention = ChannelAttention(512)
@@ -226,11 +226,11 @@ class ImprovedCNN(nn.Module):
             nn.Linear(self.feature_size, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(0.3),
             nn.Linear(128, n_outputs)
         )
         
@@ -382,6 +382,42 @@ def load_session_data(session_id, events_folder, respeck_folder, nasal_folder, e
 
     df_respeck['SessionID'] = session_id
     return df_respeck
+
+def balance_data(X_data, y_data, random_state):
+    """Resamples a dataset to balance its classes using SMOTE or RandomOverSampler."""
+    if len(X_data) == 0:
+        return X_data, y_data
+
+    print(f"  - Balancing data with initial shape {X_data.shape} and distribution {Counter(y_data)}")
+    
+    # Reshape for sampler
+    nsamples, n_timesteps, n_features = X_data.shape
+    X_reshaped = X_data.reshape((nsamples, n_timesteps * n_features))
+    
+    class_counts = Counter(y_data)
+    # Filter out class 0 and any classes not present
+    minority_classes = {label: count for label, count in class_counts.items() if label != 0 and count > 0}
+    
+    if not minority_classes:
+        print("  - No minority classes to balance. Returning original data.")
+        return X_data, y_data
+        
+    min_class_count = min(minority_classes.values())
+    k = min_class_count - 1
+
+    if k < 1:
+        print(f"  - Smallest minority class has {min_class_count} samples. Using RandomOverSampler.")
+        sampler = RandomOverSampler(random_state=random_state)
+    else:
+        sampler = SMOTE(random_state=random_state, k_neighbors=k)
+    
+    X_resampled, y_resampled = sampler.fit_resample(X_reshaped, y_data)
+    print(f"  - Resampled distribution: {Counter(y_resampled)}")
+    
+    # Reshape back to original format
+    X_resampled = X_resampled.reshape(-1, n_timesteps, n_features)
+    
+    return X_resampled, y_resampled
 
 # ==============================================================================
 # 3. Main Execution Block
@@ -627,29 +663,48 @@ def main():
         
         # Apply SMOTE to training data
         nsamples, n_timesteps, n_features = X_train.shape
-        X_train_reshaped = X_train.reshape((nsamples, n_timesteps * n_features))
+        # X_train_reshaped = X_train.reshape((nsamples, n_timesteps * n_features))
         
-        class_counts = Counter(y_train)
-        minority_classes = {label: count for label, count in class_counts.items() if label != 0}
+        # class_counts = Counter(y_train)
+        # minority_classes = {label: count for label, count in class_counts.items() if label != 0}
         
-        if not minority_classes:
-            print("  - No minority classes in training data. Skipping resampling.")
-            X_train_resampled, y_train_resampled = X_train_reshaped, y_train
-        else:
-            min_class_count = min(minority_classes.values())
-            k = min_class_count - 1
-            if k < 1:
-                print(f"  - Smallest minority class has {min_class_count} samples. Using RandomOverSampler.")
-                sampler = RandomOverSampler(random_state=RANDOM_STATE)
-            else:
-                print(f"  - Using SMOTE with k_neighbors={k}")
-                sampler = SMOTE(random_state=RANDOM_STATE, k_neighbors=k)
+        # if not minority_classes:
+        #     print("  - No minority classes in training data. Skipping resampling.")
+        #     X_train_resampled, y_train_resampled = X_train_reshaped, y_train
+        # else:
+        #     min_class_count = min(minority_classes.values())
+        #     k = min_class_count - 1
+        #     if k < 1:
+        #         print(f"  - Smallest minority class has {min_class_count} samples. Using RandomOverSampler.")
+        #         sampler = RandomOverSampler(random_state=RANDOM_STATE)
+        #     else:
+        #         print(f"  - Using SMOTE with k_neighbors={k}")
+        #         sampler = SMOTE(random_state=RANDOM_STATE, k_neighbors=k)
             
-            X_train_resampled, y_train_resampled = sampler.fit_resample(X_train_reshaped, y_train)
-            print(f"  - Resampled training distribution: {Counter(y_train_resampled)}")
+        #     X_train_resampled, y_train_resampled = sampler.fit_resample(X_train_reshaped, y_train)
+        #     print(f"  - Resampled training distribution: {Counter(y_train_resampled)}")
+
+        # --- THIS IS THE NEW RESAMPLING LOGIC ---
+        print("\nApplying new sophisticated resampling strategy...")
+
+        # 1. Balance the main patient's data separately
+        main_X_resampled, main_y_resampled = balance_data(main_X, main_y, RANDOM_STATE)
+
+        # 2. Balance the additional training patient's data separately
+        train_additional_X, train_additional_y, _ = additional_patients_windows[train_patient]
+        add_X_resampled, add_y_resampled = balance_data(train_additional_X, train_additional_y, RANDOM_STATE)
+
+        # 3. Combine the TWO BALANCED datasets
+        print("\nCombining the two balanced datasets...")
+        X_train_resampled = np.vstack([main_X_resampled, add_X_resampled])
+        y_train_resampled = np.hstack([main_y_resampled, add_y_resampled])
+
+        print(f"Final combined and balanced training set shape: {X_train_resampled.shape}")
+        print(f"Final training class distribution: {Counter(y_train_resampled)}")
+        # --- END OF NEW RESAMPLING LOGIC ---
         
         # Reshape back to original format
-        X_train_resampled = X_train_resampled.reshape(-1, n_timesteps, n_features)
+        # X_train_resampled = X_train_resampled.reshape(-1, n_timesteps, n_features)
         
         # Convert to PyTorch tensors
         X_train_tensor = torch.from_numpy(X_train_resampled).float()
@@ -669,7 +724,7 @@ def main():
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6)
         criterion = nn.CrossEntropyLoss()
         checkpoint_path = os.path.join(args.base_output_dir, f'fixed_training_checkpoint_fold_{fold}.pt')
-        early_stopping = EarlyStopping(patience=10, verbose=False, path=checkpoint_path)
+        early_stopping = EarlyStopping(patience=8, verbose=False, path=checkpoint_path)
         
         max_grad_norm = 1.0
         
