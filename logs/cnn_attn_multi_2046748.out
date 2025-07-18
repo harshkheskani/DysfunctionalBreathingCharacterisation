@@ -1,0 +1,114 @@
+======================================================
+Job started on landonia19.inf.ed.ac.uk at Fri 18 Jul 15:33:23 BST 2025
+Job ID: 2046748
+======================================================
+Conda environment 'diss' activated.
+Using python: /home/s1978431/miniconda3/envs/diss/bin/python
+Changed to /home/s1978431/DysfunctionalBreathingCharacterisation
+Starting Python script: /home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-unseen.py
+Data source: /home/s1978431/DysfunctionalBreathingCharacterisation/data/bishkek_csr/03_train_ready/
+Results will be saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046748
+--- 1. Setting up configuration and constants ---
+
+--- 2. Loading and preprocessing data ---
+  - Processing session: 10-05-2025
+  - Processing session: 11-05-2025
+  - Processing session: 24-04-2025
+  - Processing session: 16-04-2025
+  - Processing session: 25-04-2025
+  - Processing session: 26-04-2025
+  - Processing session: 08-05-2025
+  - Processing session: 04-04-2025
+  - Processing session: 05-04-2025
+  - Processing session: 16-06-2025
+  - Processing session: 13-06-2025
+
+--- 3. Feature engineering, imputation, and normalization ---
+Engineering new signal-based features...
+New features added: ['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+
+
+Creating windows for all data...
+
+--- 4. Setting up PyTorch device: cuda ---
+
+--- 5. Starting Cross-Validation for Generalization ---
+
+--- FOLD 1/2 ---
+Training on: Main patient + csr005
+Testing on: csr003
+
+Applying per-patient balancing strategy...
+  - Balancing data with initial shape (31897, 375, 9) and distribution Counter({np.int64(0): 28206, np.int64(4): 2500, np.int64(2): 1034, np.int64(1): 151, np.int64(3): 6})
+  - Resampled distribution: Counter({np.int64(0): 28206, np.int64(4): 28206, np.int64(2): 28206, np.int64(1): 28206, np.int64(3): 28206})
+  - Balancing data with initial shape (4764, 375, 9) and distribution Counter({np.int64(4): 3922, np.int64(0): 688, np.int64(2): 122, np.int64(1): 32})
+  - Resampled distribution: Counter({np.int64(0): 3922, np.int64(4): 3922, np.int64(2): 3922, np.int64(1): 3922})
+
+Final training shape: (156718, 375, 9), Test shape: (3202, 375, 9)
+Final training distribution: Counter({np.int64(0): 32128, np.int64(4): 32128, np.int64(2): 32128, np.int64(1): 32128, np.int64(3): 28206})
+Test distribution: Counter({np.int64(0): 1765, np.int64(4): 1279, np.int64(2): 139, np.int64(3): 19})
+  - Starting training for fold 1...
+    Epoch 10/100, Val Loss: 1.9728
+    Epoch 20/100, Val Loss: 2.8103
+  - Early stopping triggered at epoch 25
+                     precision    recall  f1-score   support
+
+             Normal       0.58      0.49      0.53      1765
+  Obstructive Apnea       0.00      0.00      0.00         0
+    Hypopnea Events       0.04      0.04      0.04       139
+Central/Mixed Apnea       0.00      0.00      0.00        19
+       Desaturation       0.42      0.39      0.40      1279
+
+           accuracy                           0.43      3202
+          macro avg       0.21      0.18      0.19      3202
+       weighted avg       0.49      0.43      0.46      3202
+
+
+--- FOLD 2/2 ---
+Training on: Main patient + csr003
+Testing on: csr005
+
+Applying per-patient balancing strategy...
+  - Balancing data with initial shape (31897, 375, 9) and distribution Counter({np.int64(0): 28206, np.int64(4): 2500, np.int64(2): 1034, np.int64(1): 151, np.int64(3): 6})
+  - Resampled distribution: Counter({np.int64(0): 28206, np.int64(4): 28206, np.int64(2): 28206, np.int64(1): 28206, np.int64(3): 28206})
+  - Balancing data with initial shape (3202, 375, 9) and distribution Counter({np.int64(0): 1765, np.int64(4): 1279, np.int64(2): 139, np.int64(3): 19})
+  - Resampled distribution: Counter({np.int64(0): 1765, np.int64(4): 1765, np.int64(2): 1765, np.int64(3): 1765})
+
+Final training shape: (148090, 375, 9), Test shape: (4764, 375, 9)
+Final training distribution: Counter({np.int64(0): 29971, np.int64(4): 29971, np.int64(2): 29971, np.int64(3): 29971, np.int64(1): 28206})
+Test distribution: Counter({np.int64(4): 3922, np.int64(0): 688, np.int64(2): 122, np.int64(1): 32})
+  - Starting training for fold 2...
+    Epoch 10/100, Val Loss: 4.1663
+  - Early stopping triggered at epoch 16
+                     precision    recall  f1-score   support
+
+             Normal       0.10      0.17      0.13       688
+  Obstructive Apnea       0.00      0.22      0.01        32
+    Hypopnea Events       0.01      0.13      0.02       122
+Central/Mixed Apnea       0.00      0.00      0.00         0
+       Desaturation       0.56      0.07      0.12      3922
+
+           accuracy                           0.08      4764
+          macro avg       0.14      0.12      0.06      4764
+       weighted avg       0.48      0.08      0.12      4764
+
+
+============================================================
+Generalization Cross-Validation Complete
+============================================================
+Aggregated Results Across Both Folds:
+                     precision    recall  f1-score   support
+
+             Normal       0.37      0.40      0.38      2453
+  Obstructive Apnea       0.00      0.22      0.01        32
+    Hypopnea Events       0.02      0.08      0.03       261
+Central/Mixed Apnea       0.00      0.00      0.00        19
+       Desaturation       0.46      0.15      0.22      5201
+
+           accuracy                           0.22      7966
+          macro avg       0.17      0.17      0.13      7966
+       weighted avg       0.42      0.22      0.26      7966
+
+======================================================
+Job finished at Fri 18 Jul 17:28:29 BST 2025
+======================================================

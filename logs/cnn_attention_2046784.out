@@ -1,0 +1,10 @@
+======================================================
+Job started on landonia19.inf.ed.ac.uk at Fri 18 Jul 16:58:42 BST 2025
+Job ID: 2046784
+======================================================
+Conda environment 'diss' activated.
+Using python: /home/s1978431/miniconda3/envs/diss/bin/python
+Changed to /home/s1978431/DysfunctionalBreathingCharacterisation
+Starting Python script: /home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py
+Data source: /home/s1978431/DysfunctionalBreathingCharacterisation/data/bishkek_csr/03_train_ready/
+Results will be saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784
