@@ -19,3 +19,10 @@ For example, when doing 'df[col].method(value, inplace=True)', try using 'df.met
 
 
   df[col].bfill(inplace=True)
+Traceback (most recent call last):
+  File "/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py", line 905, in <module>
+    main()
+  File "/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py", line 866, in main
+    print(f"  - Gradient Clipping: Max norm = {max_grad_norm}")
+                                               ^^^^^^^^^^^^^
+NameError: name 'max_grad_norm' is not defined

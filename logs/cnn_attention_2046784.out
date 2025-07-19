@@ -8,3 +8,175 @@ Changed to /home/s1978431/DysfunctionalBreathingCharacterisation
 Starting Python script: /home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py
 Data source: /home/s1978431/DysfunctionalBreathingCharacterisation/data/bishkek_csr/03_train_ready/
 Results will be saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784
+============================================================
+FINAL SLEEP APNEA MODEL TRAINING
+============================================================
+Training production model on all available data...
+Output directory: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784
+Training epochs: 80
+Batch size: 64
+Learning rate: 0.0001
+
+--- 1. Loading and preprocessing data ---
+Found 9 event files. Processing each one...
+  - Processing session: 10-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 11-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 24-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 16-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 25-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 26-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 08-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 04-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 05-04-2025
+  - Applying precise interval-based labels...
+
+Data loading complete.
+Final DataFrame shape: (2363398, 14)
+Number of sessions: 9
+Class distribution in raw data:
+  Normal: 2,087,819 samples (88.3%)
+  Obstructive Apnea: 17,261 samples (0.7%)
+  Hypopnea Events: 87,156 samples (3.7%)
+  Central/Mixed Apnea: 1,004 samples (0.0%)
+  Desaturation: 170,158 samples (7.2%)
+
+--- 2. Feature engineering and preprocessing ---
+Engineering new signal-based features...
+New features added: ['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+
+Checking for and imputing missing values (NaNs)...
+  - Found 4762 NaNs in 'breathingSignal'. Applying forward-fill and backward-fill.
+  - Found 2317390 NaNs in 'breathingRate'. Applying forward-fill and backward-fill.
+  - Found 1954 NaNs in 'breathing_signal_rolling_mean'. Applying forward-fill and backward-fill.
+Imputation complete. No NaNs remain in feature columns.
+
+Applying per-session (per-subject) normalization...
+Normalization complete.
+
+--- 3. Creating time-series windows ---
+Window size: 375 samples (30s)
+Step size: 74 samples (80.0% overlap)
+Sampling rate: 12.5 Hz
+Starting the windowing process...
+  - Session 04-04-2025: 3551 windows
+  - Session 05-04-2025: 3264 windows
+  - Session 08-05-2025: 3405 windows
+  - Session 10-05-2025: 3696 windows
+  - Session 11-05-2025: 3767 windows
+  - Session 16-04-2025: 3679 windows
+  - Session 24-04-2025: 3632 windows
+  - Session 25-04-2025: 4230 windows
+  - Session 26-04-2025: 2673 windows
+
+Windowing complete.
+Total windows: 31,897
+Window shape: (31897, 375, 6)
+Final windowed class distribution:
+  Normal: 28,206 windows (88.4%)
+  Obstructive Apnea: 151 windows (0.5%)
+  Hypopnea Events: 1,034 windows (3.2%)
+  Central/Mixed Apnea: 6 windows (0.0%)
+  Desaturation: 2,500 windows (7.8%)
+
+--- 4. Setting up PyTorch device ---
+Using device: cuda
+
+--- 5. TRAINING FINAL MODEL ON ALL DATA ---
+Training the final production model on all available data...
+Original distribution across all data: Counter({np.int64(0): 28206, np.int64(4): 2500, np.int64(2): 1034, np.int64(1): 151, np.int64(3): 6})
+Smallest minority class has 6 samples. Setting k_neighbors for SMOTE to 5.
+Final resampled distribution: Counter({np.int64(0): 28206, np.int64(4): 28206, np.int64(2): 28206, np.int64(1): 28206, np.int64(3): 28206})
+
+Final model initialized:
+  - Total parameters: 3,162,963
+  - Trainable parameters: 3,162,963
+Starting final model training (max 80 epochs)...
+Early stopping target: 80 epochs (based on k-fold CV)
+Note: No validation set is used as we're training on all available data.
+Epoch [1/80], Train Loss: 0.8409, Train Accuracy: 65.26%, LR: 1.00e-04
+Epoch [10/80], Train Loss: 0.2370, Train Accuracy: 92.07%, LR: 1.00e-04
+Epoch [20/80], Train Loss: 0.1495, Train Accuracy: 95.74%, LR: 1.00e-04
+Epoch [30/80], Train Loss: 0.1311, Train Accuracy: 96.50%, LR: 1.00e-04
+Epoch [40/80], Train Loss: 0.1203, Train Accuracy: 96.99%, LR: 1.00e-04
+Epoch [50/80], Train Loss: 0.1142, Train Accuracy: 97.19%, LR: 1.00e-04
+Epoch [60/80], Train Loss: 0.1105, Train Accuracy: 97.36%, LR: 1.00e-04
+Epoch [70/80], Train Loss: 0.1075, Train Accuracy: 97.54%, LR: 1.00e-04
+Reached target epochs (80) based on k-fold CV results. Stopping training.
+Early stopping triggered at epoch 80
+
+Final model training complete! Trained for 80 epochs.
+
+--- 6. Saving final model and configuration ---
+Final model saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784/final_sleep_apnea_model_20250718_200301.pt
+Model configuration saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784/model_config_20250718_200301.pkl
+
+================================================================================
+FINAL MODEL TRAINING SUMMARY
+================================================================================
+Model Architecture: ImprovedCNN with Attention & Multi-Scale Convolutions
+Total Parameters: 3,162,963
+Trainable Parameters: 3,162,963
+Training Epochs: 80
+Batch Size: 64
+Learning Rate: 0.0001
+Final Training Loss: 0.1046
+Final Training Accuracy: 97.58%
+Training Data Shape: (141030, 375, 6)
+Original Windows: 31,897
+Resampled Windows: 141,030
+Device Used: cuda
+
+Data Configuration:
+  - Features Used: ['breathingSignal', 'activityLevel', 'breathingRate', 'x', 'y', 'z']
+  - Number of Classes: 5
+  - Window Size: 375 samples (30s)
+  - Step Size: 74 samples (80.0% overlap)
+  - Sampling Rate: 12.5 Hz
+  - Sessions Processed: 9
+
+Model Files:
+  - Model Weights: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784/final_sleep_apnea_model_20250718_200301.pt
+  - Configuration: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784/model_config_20250718_200301.pkl
+  - Training Curves: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784/final_model_training_curves.png
+  - Class Distributions: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046784/class_distributions.png
+
+Final Class Distribution in Training Data:
+  Normal:
+    Original: 28,206 windows (88.4%)
+    Resampled: 28,206 windows (20.0%)
+  Obstructive Apnea:
+    Original: 151 windows (0.5%)
+    Resampled: 28,206 windows (20.0%)
+  Hypopnea Events:
+    Original: 1,034 windows (3.2%)
+    Resampled: 28,206 windows (20.0%)
+  Central/Mixed Apnea:
+    Original: 6 windows (0.0%)
+    Resampled: 28,206 windows (20.0%)
+  Desaturation:
+    Original: 2,500 windows (7.8%)
+    Resampled: 28,206 windows (20.0%)
+
+Model Architecture Details:
+  - Multi-scale convolutions with kernels: 3, 7, 15, 1
+  - Residual blocks with skip connections
+  - Channel attention mechanism
+  - Spatial attention mechanism
+  - Batch normalization and dropout regularization
+  - Global adaptive pooling
+  - Fully connected classifier with 3 hidden layers
+
+Training Configuration:
+  - Optimizer: Adam with weight decay (1e-3)
+  - Learning Rate Scheduler: ReduceLROnPlateau
+======================================================
+Job finished at Fri 18 Jul 20:03:22 BST 2025
+======================================================
