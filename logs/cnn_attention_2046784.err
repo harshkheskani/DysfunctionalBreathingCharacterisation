@@ -1,0 +1,28 @@
+/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py:568: FutureWarning: A value is trying to be set on a copy of a DataFrame or Series through chained assignment using an inplace method.
+The behavior will change in pandas 3.0. This inplace method will never work because the intermediate object on which we are setting values always behaves as a copy.
+
+For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' or df[col] = df[col].method(value) instead, to perform the operation inplace on the original object.
+
+
+  df['breathing_signal_rolling_std'].bfill(inplace=True)
+/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py:574: FutureWarning: A value is trying to be set on a copy of a DataFrame or Series through chained assignment using an inplace method.
+The behavior will change in pandas 3.0. This inplace method will never work because the intermediate object on which we are setting values always behaves as a copy.
+
+For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' or df[col] = df[col].method(value) instead, to perform the operation inplace on the original object.
+
+
+  df[col].ffill(inplace=True)
+/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py:575: FutureWarning: A value is trying to be set on a copy of a DataFrame or Series through chained assignment using an inplace method.
+The behavior will change in pandas 3.0. This inplace method will never work because the intermediate object on which we are setting values always behaves as a copy.
+
+For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' or df[col] = df[col].method(value) instead, to perform the operation inplace on the original object.
+
+
+  df[col].bfill(inplace=True)
+Traceback (most recent call last):
+  File "/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py", line 905, in <module>
+    main()
+  File "/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-full-train.py", line 866, in main
+    print(f"  - Gradient Clipping: Max norm = {max_grad_norm}")
+                                               ^^^^^^^^^^^^^
+NameError: name 'max_grad_norm' is not defined

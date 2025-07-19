@@ -1,0 +1,2 @@
+/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-unseen.py:309: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  df.fillna(method='ffill', inplace=True); df.fillna(method='bfill', inplace=True)
