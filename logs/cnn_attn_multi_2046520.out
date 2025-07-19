@@ -1,0 +1,201 @@
+======================================================
+Job started on landonia19.inf.ed.ac.uk at Thu 17 Jul 16:33:52 BST 2025
+Job ID: 2046520
+======================================================
+Conda environment 'diss' activated.
+Using python: /home/s1978431/miniconda3/envs/diss/bin/python
+Changed to /home/s1978431/DysfunctionalBreathingCharacterisation
+Starting Python script: /home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-attention-unseen.py
+Data source: /home/s1978431/DysfunctionalBreathingCharacterisation/data/bishkek_csr/03_train_ready/
+Results will be saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2046520
+--- 1. Setting up configuration and constants ---
+
+--- 2. Loading and preprocessing data ---
+Loading main patient data (9 nights)...
+  - Processing session: 10-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 11-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 24-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 16-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 25-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 26-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 08-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 04-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 05-04-2025
+  - Applying precise interval-based labels...
+Loaded 9 sessions from main patient.
+
+Loading additional patient data...
+  - Processing session: 16-06-2025
+  - Applying precise interval-based labels...
+  - Loaded 1 sessions from csr005
+  - Processing session: 13-06-2025
+  - Applying precise interval-based labels...
+  - Loaded 1 sessions from csr003
+
+Main patient data shape: (2363398, 14)
+Main patient class distribution: 
+Label
+0    0.883397
+4    0.071997
+2    0.036877
+1    0.007303
+3    0.000425
+Name: proportion, dtype: float64
+
+--- 3. Engineering features, imputing missing values, and normalizing ---
+Engineering new signal-based features...
+New features added: ['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+
+Checking for and imputing missing values (NaNs)...
+  - Found 4762 NaNs in 'breathingSignal'. Applying forward-fill and backward-fill.
+  - Found 2317390 NaNs in 'breathingRate'. Applying forward-fill and backward-fill.
+  - Found 1954 NaNs in 'breathing_signal_rolling_mean'. Applying forward-fill and backward-fill.
+
+Imputation complete. No NaNs remain in feature columns.
+Engineering new signal-based features...
+New features added: ['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+
+Checking for and imputing missing values (NaNs)...
+  - Found 520 NaNs in 'breathingSignal'. Applying forward-fill and backward-fill.
+  - Found 348065 NaNs in 'breathingRate'. Applying forward-fill and backward-fill.
+  - Found 280 NaNs in 'breathing_signal_rolling_mean'. Applying forward-fill and backward-fill.
+
+Imputation complete. No NaNs remain in feature columns.
+Engineering new signal-based features...
+New features added: ['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+
+Checking for and imputing missing values (NaNs)...
+  - Found 931 NaNs in 'breathingSignal'. Applying forward-fill and backward-fill.
+  - Found 232504 NaNs in 'breathingRate'. Applying forward-fill and backward-fill.
+  - Found 403 NaNs in 'breathing_signal_rolling_mean'. Applying forward-fill and backward-fill.
+
+Imputation complete. No NaNs remain in feature columns.
+
+Applying per-session (per-subject) normalization...
+Normalization complete.
+
+--- 4. Setting up PyTorch device ---
+Using device: cuda
+
+--- 5. Starting Cross-Validation with Fixed Training Set ---
+Training Strategy:
+- Fixed training set: Main patient (9 nights)
+- Additional training: One additional patient
+- Test set: The other additional patient
+
+Creating windows for main patient data...
+Main patient windows - X: (31897, 375, 6), y: (31897,)
+Main patient class distribution: Counter({np.int64(0): 28206, np.int64(4): 2500, np.int64(2): 1034, np.int64(1): 151, np.int64(3): 6})
+csr005 windows - X: (4764, 375, 6), y: (4764,)
+csr005 class distribution: Counter({np.int64(4): 3922, np.int64(0): 688, np.int64(2): 122, np.int64(1): 32})
+csr003 windows - X: (3202, 375, 6), y: (3202,)
+csr003 class distribution: Counter({np.int64(0): 1765, np.int64(4): 1279, np.int64(2): 139, np.int64(3): 19})
+
+--- FOLD 1/2 ---
+Training on: Main patient + csr005
+Testing on: csr003
+Training set shape: (36661, 375, 6)
+Test set shape: (3202, 375, 6)
+Training class distribution: Counter({np.int64(0): 28894, np.int64(4): 6422, np.int64(2): 1156, np.int64(1): 183, np.int64(3): 6})
+Test class distribution: Counter({np.int64(0): 1765, np.int64(4): 1279, np.int64(2): 139, np.int64(3): 19})
+  - Using SMOTE with k_neighbors=5
+  - Resampled training distribution: Counter({np.int64(0): 28894, np.int64(4): 28894, np.int64(2): 28894, np.int64(1): 28894, np.int64(3): 28894})
+  - Starting training for fold 1...
+  - Early stopping triggered at epoch 26
+  - Fold 1 complete. Test accuracy: 38.79%
+
+Fold 1 Results:
+Training on: Main patient + csr005
+Testing on: csr003
+                     precision    recall  f1-score   support
+
+             Normal       0.51      0.46      0.48      1765
+  Obstructive Apnea       0.00      0.00      0.00         0
+    Hypopnea Events       0.04      0.15      0.06       139
+Central/Mixed Apnea       0.00      0.00      0.00        19
+       Desaturation       0.42      0.33      0.37      1279
+
+           accuracy                           0.39      3202
+          macro avg       0.19      0.19      0.18      3202
+       weighted avg       0.45      0.39      0.42      3202
+
+
+--- FOLD 2/2 ---
+Training on: Main patient + csr003
+Testing on: csr005
+Training set shape: (35099, 375, 6)
+Test set shape: (4764, 375, 6)
+Training class distribution: Counter({np.int64(0): 29971, np.int64(4): 3779, np.int64(2): 1173, np.int64(1): 151, np.int64(3): 25})
+Test class distribution: Counter({np.int64(4): 3922, np.int64(0): 688, np.int64(2): 122, np.int64(1): 32})
+  - Using SMOTE with k_neighbors=24
+  - Resampled training distribution: Counter({np.int64(0): 29971, np.int64(4): 29971, np.int64(2): 29971, np.int64(1): 29971, np.int64(3): 29971})
+  - Starting training for fold 2...
+  - Early stopping triggered at epoch 35
+  - Fold 2 complete. Test accuracy: 69.08%
+
+Fold 2 Results:
+Training on: Main patient + csr003
+Testing on: csr005
+                     precision    recall  f1-score   support
+
+             Normal       0.28      0.51      0.36       688
+  Obstructive Apnea       0.00      0.00      0.00        32
+    Hypopnea Events       0.02      0.02      0.02       122
+Central/Mixed Apnea       0.00      0.00      0.00         0
+       Desaturation       0.87      0.75      0.80      3922
+
+           accuracy                           0.69      4764
+          macro avg       0.23      0.26      0.24      4764
+       weighted avg       0.76      0.69      0.71      4764
+
+
+====================================================
+Fixed Training Set Cross-Validation Complete
+====================================================
+Training Strategy Summary:
+- Fixed training set: Main patient (9 nights)
+- Fold 1: Train on Main + csr005, Test on csr003
+- Fold 2: Train on Main + csr003, Test on csr005
+====================================================
+Overall Accuracy: 56.90%
+
+Aggregated Results Across Both Folds:
+                     precision    recall  f1-score   support
+
+             Normal       0.41      0.47      0.44      2453
+  Obstructive Apnea       0.00      0.00      0.00        32
+    Hypopnea Events       0.03      0.09      0.05       261
+Central/Mixed Apnea       0.00      0.00      0.00        19
+       Desaturation       0.77      0.64      0.70      5201
+
+           accuracy                           0.57      7966
+          macro avg       0.24      0.24      0.24      7966
+       weighted avg       0.63      0.57      0.59      7966
+
+
+--- Additional Analysis ---
+Total test samples: 7966
+Class distribution in test data: Counter({np.int64(4): 5201, np.int64(0): 2453, np.int64(2): 261, np.int64(1): 32, np.int64(3): 19})
+Class distribution in predictions: Counter({np.int64(4): 4372, np.int64(0): 2843, np.int64(2): 666, np.int64(1): 50, np.int64(3): 35})
+
+Per-class accuracy:
+  Normal: 47.17% (2453 samples)
+  Obstructive Apnea: 0.00% (32 samples)
+  Hypopnea Events: 8.81% (261 samples)
+  Central/Mixed Apnea: 0.00% (19 samples)
+  Desaturation: 64.47% (5201 samples)
+
+====================================================
+Analysis Complete!
+====================================================
+======================================================
+Job finished at Thu 17 Jul 19:05:12 BST 2025
+======================================================
