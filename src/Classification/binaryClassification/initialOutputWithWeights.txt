@@ -1,0 +1,12 @@
+Evaluating final model on the test set...
+
+Classification Report
+---------------------
+              precision    recall  f1-score   support
+
+  Normal (0)       0.85      0.91      0.88      5941
+   Apnea (1)       0.53      0.39      0.45      1553
+
+    accuracy                           0.80      7494
+   macro avg       0.69      0.65      0.66      7494
+weighted avg       0.78      0.80      0.79      7494
