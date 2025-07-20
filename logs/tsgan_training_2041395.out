@@ -1,0 +1,19 @@
+======================================================
+Job started on landonia08.inf.ed.ac.uk at Sun  6 Jul 18:13:56 BST 2025
+Job ID: 2041395
+======================================================
+Conda environment 'diss' activated
+Project root directory set to: /home/s1978431/DysfunctionalBreathingCharacterisation
+Python script to execute: /home/s1978431/DysfunctionalBreathingCharacterisation/src/gan/wgan-gp2.py
+------------------------------------------------------
+Starting Python script for Time-Series GAN training...
+Running with the following parameters:
+  - Data Path: /home/s1978431/DysfunctionalBreathingCharacterisation/data/bishkek_csr/
+  - Output Dir: /home/s1978431/DysfunctionalBreathingCharacterisation/outputs/gan_experiment_20250706_181408
+  - Epochs: 5000
+  - Batch Size: 32
+  - Learning Rate: 0.0002
+  - Latent Dim: 64
+  - Number of Critic Iterations: 5
+  - Gradient Penalty Lambda: 10
+------------------------------------------------------

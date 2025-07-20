@@ -1,0 +1,37 @@
+/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/attention_cnn_cluster.py:457: FutureWarning: A value is trying to be set on a copy of a DataFrame or Series through chained assignment using an inplace method.
+The behavior will change in pandas 3.0. This inplace method will never work because the intermediate object on which we are setting values always behaves as a copy.
+
+For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' or df[col] = df[col].method(value) instead, to perform the operation inplace on the original object.
+
+
+  df['breathing_signal_rolling_std'].bfill(inplace=True)
+/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/attention_cnn_cluster.py:463: FutureWarning: A value is trying to be set on a copy of a DataFrame or Series through chained assignment using an inplace method.
+The behavior will change in pandas 3.0. This inplace method will never work because the intermediate object on which we are setting values always behaves as a copy.
+
+For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' or df[col] = df[col].method(value) instead, to perform the operation inplace on the original object.
+
+
+  df[col].ffill(inplace=True)
+/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/attention_cnn_cluster.py:464: FutureWarning: A value is trying to be set on a copy of a DataFrame or Series through chained assignment using an inplace method.
+The behavior will change in pandas 3.0. This inplace method will never work because the intermediate object on which we are setting values always behaves as a copy.
+
+For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' or df[col] = df[col].method(value) instead, to perform the operation inplace on the original object.
+
+
+  df[col].bfill(inplace=True)
+Traceback (most recent call last):
+  File "/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/attention_cnn_cluster.py", line 773, in <module>
+    main()
+  File "/home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/attention_cnn_cluster.py", line 731, in main
+    model.load_state_dict(torch.load(f'lono_checkpoint_fold_{fold}.pt'))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s1978431/miniconda3/envs/diss/lib/python3.11/site-packages/torch/serialization.py", line 1479, in load
+    with _open_file_like(f, "rb") as opened_file:
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s1978431/miniconda3/envs/diss/lib/python3.11/site-packages/torch/serialization.py", line 759, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s1978431/miniconda3/envs/diss/lib/python3.11/site-packages/torch/serialization.py", line 740, in __init__
+    super().__init__(open(name, mode))
+                     ^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'lono_checkpoint_fold_4.pt'

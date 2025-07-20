@@ -1,0 +1,235 @@
+======================================================
+Job started on landonia19.inf.ed.ac.uk at Mon 14 Jul 17:15:11 BST 2025
+Job ID: 2045347
+======================================================
+Conda environment 'diss' activated.
+Using python: /home/s1978431/miniconda3/envs/diss/bin/python
+Changed to /home/s1978431/DysfunctionalBreathingCharacterisation
+Starting Python script: /home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/attention_cnn_cluster.py
+Data source: /home/s1978431/DysfunctionalBreathingCharacterisation/data/bishkek_csr/03_train_ready
+Results will be saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2045347
+--- 1. Setting up configuration and constants ---
+
+--- 2. Loading and preprocessing data ---
+Found 9 event files. Processing each one...
+  - Processing session: 10-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 11-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 24-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 16-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 25-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 26-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 08-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 04-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 05-04-2025
+  - Applying precise interval-based labels...
+
+----------------------------------------------------
+Data loading with PURE signals complete.
+Final DataFrame shape: (2363398, 14)
+Final class distribution in raw data: 
+Label
+0    0.883192
+5    0.071997
+2    0.036877
+1    0.007303
+3    0.000425
+4    0.000205
+Name: proportion, dtype: float64
+
+--- 3. Engineering features, imputing missing values, and normalizing ---
+Engineering new signal-based features...
+New features added: ['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+
+Checking for and imputing missing values (NaNs)...
+  - Found 4762 NaNs in 'breathingSignal'. Applying forward-fill and backward-fill.
+  - Found 2317390 NaNs in 'breathingRate'. Applying forward-fill and backward-fill.
+  - Found 1954 NaNs in 'breathing_signal_rolling_mean'. Applying forward-fill and backward-fill.
+
+Imputation complete. No NaNs remain in feature columns.
+
+Applying per-session (per-subject) normalization...
+Normalization complete.
+
+--- 4. Creating time-series windows ---
+Number of classes: 6
+Class names: ['Normal', 'Obstructive Apnea', 'Hypopnea Events', 'Central/Mixed Apnea', 'RERA', 'Desaturation']
+
+Starting the windowing process on normalized data...
+
+Data windowing complete.
+----------------------------------------------------
+Shape of X (features): (31897, 375, 6)
+Shape of y (labels):   (31897,)
+Shape of groups (IDs): (31897,)
+Final class distribution across all windows: Counter({np.int64(0): 28201, np.int64(5): 2501, np.int64(2): 1034, np.int64(1): 151, np.int64(3): 6, np.int64(4): 4})
+
+--- 5. Setting up PyTorch device ---
+Using device: cuda
+
+--- 6. Performing initial train-test split for preliminary check ---
+Train-test split complete.
+Training set class distribution: Counter({np.int64(0): 21969, np.int64(5): 1612, np.int64(2): 699, np.int64(1): 115, np.int64(3): 4, np.int64(4): 4})
+Testing set class distribution:  Counter({np.int64(0): 6232, np.int64(5): 889, np.int64(2): 335, np.int64(1): 36, np.int64(3): 2})
+
+Balancing the training data using SMOTE...
+  - Original training distribution: Counter({np.int64(0): 21969, np.int64(5): 1612, np.int64(2): 699, np.int64(1): 115, np.int64(3): 4, np.int64(4): 4})
+Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 21969, np.int64(5): 21969, np.int64(2): 21969, np.int64(1): 21969, np.int64(3): 21969, np.int64(4): 21969})
+
+PyTorch DataLoaders created successfully.
+
+--- 7. Training and Evaluating on the initial split ---
+
+PyTorch Improved CNN model created and moved to device.
+
+Starting PyTorch model training with Early Stopping and LR Scheduler...
+Epoch [1/100], Train Loss: 0.7013, Val Loss: 1.1662, Val Accuracy: 44.49%
+Epoch [2/100], Train Loss: 0.5106, Val Loss: 1.3342, Val Accuracy: 43.65%
+Epoch [3/100], Train Loss: 0.4190, Val Loss: 1.2570, Val Accuracy: 41.74%
+Epoch [4/100], Train Loss: 0.3599, Val Loss: 1.2215, Val Accuracy: 54.66%
+Epoch [5/100], Train Loss: 0.3054, Val Loss: 1.0895, Val Accuracy: 58.94%
+Epoch [6/100], Train Loss: 0.2541, Val Loss: 1.1711, Val Accuracy: 56.53%
+Epoch [7/100], Train Loss: 0.2169, Val Loss: 1.1386, Val Accuracy: 59.42%
+Epoch [8/100], Train Loss: 0.1907, Val Loss: 0.8554, Val Accuracy: 69.94%
+Epoch [9/100], Train Loss: 0.1708, Val Loss: 1.0921, Val Accuracy: 61.70%
+Epoch [10/100], Train Loss: 0.1586, Val Loss: 1.1705, Val Accuracy: 59.46%
+Epoch [11/100], Train Loss: 0.1464, Val Loss: 0.9611, Val Accuracy: 68.88%
+Epoch [12/100], Train Loss: 0.1381, Val Loss: 1.0025, Val Accuracy: 65.88%
+Epoch [13/100], Train Loss: 0.1332, Val Loss: 1.0826, Val Accuracy: 63.28%
+Epoch [14/100], Train Loss: 0.1250, Val Loss: 1.0554, Val Accuracy: 65.09%
+Epoch [15/100], Train Loss: 0.0736, Val Loss: 1.1294, Val Accuracy: 68.41%
+Epoch [16/100], Train Loss: 0.0611, Val Loss: 0.9336, Val Accuracy: 73.87%
+Epoch [17/100], Train Loss: 0.0574, Val Loss: 0.9314, Val Accuracy: 74.62%
+Epoch [18/100], Train Loss: 0.0546, Val Loss: 0.9667, Val Accuracy: 73.42%
+Epoch [19/100], Train Loss: 0.0524, Val Loss: 1.1351, Val Accuracy: 69.28%
+Epoch [20/100], Train Loss: 0.0513, Val Loss: 1.0307, Val Accuracy: 71.87%
+Epoch [21/100], Train Loss: 0.0443, Val Loss: 0.9818, Val Accuracy: 73.77%
+Epoch [22/100], Train Loss: 0.0415, Val Loss: 1.0198, Val Accuracy: 74.02%
+Epoch [23/100], Train Loss: 0.0404, Val Loss: 0.9274, Val Accuracy: 75.25%
+Epoch [24/100], Train Loss: 0.0406, Val Loss: 0.9997, Val Accuracy: 72.56%
+Epoch [25/100], Train Loss: 0.0401, Val Loss: 1.0178, Val Accuracy: 72.40%
+Epoch [26/100], Train Loss: 0.0397, Val Loss: 1.0448, Val Accuracy: 71.66%
+Epoch [27/100], Train Loss: 0.0396, Val Loss: 1.0765, Val Accuracy: 69.16%
+Epoch [28/100], Train Loss: 0.0388, Val Loss: 1.0257, Val Accuracy: 71.11%
+Early stopping triggered
+
+Model training complete. Loading best model weights...
+
+Classification Report (Initial Split)
+---------------------------------------
+                     precision    recall  f1-score   support
+
+             Normal       0.87      0.78      0.82      6232
+  Obstructive Apnea       0.02      0.03      0.02        36
+    Hypopnea Events       0.04      0.04      0.04       335
+Central/Mixed Apnea       0.00      0.00      0.00         2
+               RERA       0.00      0.00      0.00         0
+       Desaturation       0.23      0.40      0.29       889
+
+           accuracy                           0.70      7494
+          macro avg       0.19      0.21      0.20      7494
+       weighted avg       0.76      0.70      0.72      7494
+
+
+Confusion Matrix (Initial Split)
+--------------------------------
+
+--- 8. Starting Leave-One-Night-Out Cross-Validation ---
+--- FOLD 1/9 (Testing on Night: 04-04-2025) ---
+  - Original training distribution: Counter({np.int64(0): 25018, np.int64(5): 2183, np.int64(2): 1000, np.int64(1): 135, np.int64(3): 6, np.int64(4): 4})
+  - Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 25018, np.int64(2): 25018, np.int64(5): 25018, np.int64(1): 25018, np.int64(3): 25018, np.int64(4): 25018})
+  - Early stopping triggered at epoch 88.
+  - Training complete for fold 1.
+  - Evaluation complete for fold 1.
+
+--- FOLD 2/9 (Testing on Night: 05-04-2025) ---
+  - Original training distribution: Counter({np.int64(0): 25857, np.int64(5): 1817, np.int64(2): 824, np.int64(1): 125, np.int64(3): 6, np.int64(4): 4})
+  - Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 25857, np.int64(5): 25857, np.int64(2): 25857, np.int64(1): 25857, np.int64(3): 25857, np.int64(4): 25857})
+  - Early stopping triggered at epoch 44.
+  - Training complete for fold 2.
+  - Evaluation complete for fold 2.
+
+--- FOLD 3/9 (Testing on Night: 08-05-2025) ---
+  - Original training distribution: Counter({np.int64(0): 25279, np.int64(5): 2167, np.int64(2): 890, np.int64(1): 146, np.int64(3): 6, np.int64(4): 4})
+  - Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 25279, np.int64(5): 25279, np.int64(2): 25279, np.int64(1): 25279, np.int64(3): 25279, np.int64(4): 25279})
+  - Training complete for fold 3.
+  - Evaluation complete for fold 3.
+
+--- FOLD 4/9 (Testing on Night: 10-05-2025) ---
+  - Original training distribution: Counter({np.int64(0): 24747, np.int64(5): 2337, np.int64(2): 992, np.int64(1): 115, np.int64(3): 6, np.int64(4): 4})
+  - Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 24747, np.int64(5): 24747, np.int64(2): 24747, np.int64(1): 24747, np.int64(3): 24747, np.int64(4): 24747})
+  - Early stopping triggered at epoch 92.
+  - Training complete for fold 4.
+  - Evaluation complete for fold 4.
+
+--- FOLD 5/9 (Testing on Night: 11-05-2025) ---
+  - Original training distribution: Counter({np.int64(0): 24694, np.int64(5): 2354, np.int64(2): 952, np.int64(1): 120, np.int64(3): 6, np.int64(4): 4})
+  - Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 24694, np.int64(5): 24694, np.int64(2): 24694, np.int64(1): 24694, np.int64(3): 24694, np.int64(4): 24694})
+  - Early stopping triggered at epoch 87.
+  - Training complete for fold 5.
+  - Evaluation complete for fold 5.
+
+--- FOLD 6/9 (Testing on Night: 16-04-2025) ---
+  - Original training distribution: Counter({np.int64(0): 24883, np.int64(5): 2313, np.int64(2): 883, np.int64(1): 129, np.int64(3): 6, np.int64(4): 4})
+  - Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 24883, np.int64(5): 24883, np.int64(2): 24883, np.int64(1): 24883, np.int64(3): 24883, np.int64(4): 24883})
+  - Training complete for fold 6.
+  - Evaluation complete for fold 6.
+
+--- FOLD 7/9 (Testing on Night: 24-04-2025) ---
+  - Original training distribution: Counter({np.int64(0): 25062, np.int64(5): 2200, np.int64(2): 854, np.int64(1): 147, np.int64(3): 2})
+  - Smallest minority class has 2 samples. Setting k_neighbors for SMOTE to 1.
+  - Resampled training distribution: Counter({np.int64(0): 25062, np.int64(5): 25062, np.int64(2): 25062, np.int64(1): 25062, np.int64(3): 25062})
+  - Training complete for fold 7.
+  - Evaluation complete for fold 7.
+
+--- FOLD 8/9 (Testing on Night: 25-04-2025) ---
+  - Original training distribution: Counter({np.int64(0): 24313, np.int64(5): 2296, np.int64(2): 909, np.int64(1): 141, np.int64(3): 4, np.int64(4): 4})
+  - Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 24313, np.int64(5): 24313, np.int64(2): 24313, np.int64(1): 24313, np.int64(3): 24313, np.int64(4): 24313})
+  - Early stopping triggered at epoch 56.
+  - Training complete for fold 8.
+  - Evaluation complete for fold 8.
+
+--- FOLD 9/9 (Testing on Night: 26-04-2025) ---
+  - Original training distribution: Counter({np.int64(0): 25755, np.int64(5): 2341, np.int64(2): 968, np.int64(1): 150, np.int64(3): 6, np.int64(4): 4})
+  - Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 25755, np.int64(5): 25755, np.int64(2): 25755, np.int64(1): 25755, np.int64(3): 25755, np.int64(4): 25755})
+  - Early stopping triggered at epoch 100.
+  - Training complete for fold 9.
+  - Evaluation complete for fold 9.
+
+
+====================================================
+Leave-One-Night-Out Cross-Validation Complete.
+Aggregated Results Across All Folds:
+====================================================
+                     precision    recall  f1-score   support
+
+             Normal       0.99      0.98      0.98     56088
+  Obstructive Apnea       0.85      0.89      0.87       324
+    Hypopnea Events       0.93      0.89      0.91      3015
+Central/Mixed Apnea       0.70      0.89      0.78        18
+               RERA       0.00      0.00      0.00         0
+       Desaturation       0.90      0.93      0.92      8001
+
+           accuracy                           0.97     67446
+          macro avg       0.73      0.76      0.74     67446
+       weighted avg       0.97      0.97      0.97     67446
+
+======================================================
+Job finished at Wed 16 Jul 02:45:20 BST 2025
+======================================================
