@@ -320,9 +320,162 @@ class EarlyStopping:
         torch.save(model.state_dict(), self.path)
         self.val_loss_min = val_loss
 
-def add_signal_features(df):
-    """Adds rolling window features to the dataframe."""
-    print("Engineering new signal-based features...")
+def add_breathing_fft_features(df, sampling_rate=12.5):
+    """
+    Adds FFT features focused exclusively on breathing signal for sleep apnea detection.
+    """
+    print("Engineering breathing signal FFT features...")
+    
+    # FFT window parameters - optimized for sleep apnea detection
+    FFT_WINDOW_SIZE = int(60 * sampling_rate)  # 60 seconds for better frequency resolution
+    MIN_WINDOW_SIZE = int(20 * sampling_rate)  # Minimum 20 seconds
+    
+    def compute_breathing_fft_features(signal_series):
+        """
+        Compute comprehensive FFT features for breathing signal.
+        Focuses on respiratory patterns and apnea detection.
+        """
+        n_samples = len(signal_series)
+        
+        # Initialize output arrays
+        power_very_low = np.zeros(n_samples)      # 0.008-0.04 Hz (HRV, very slow patterns)
+        power_low = np.zeros(n_samples)           # 0.04-0.1 Hz (slow respiratory patterns)
+        power_normal_resp = np.zeros(n_samples)   # 0.1-0.3 Hz (normal breathing 6-18 BPM)
+        power_fast_resp = np.zeros(n_samples)     # 0.3-0.6 Hz (fast breathing 18-36 BPM)
+        power_high = np.zeros(n_samples)          # 0.6-2.0 Hz (artifacts, noise)
+        
+        spectral_centroid = np.zeros(n_samples)   # Center frequency of breathing
+        spectral_spread = np.zeros(n_samples)     # Frequency distribution width
+        dominant_frequency = np.zeros(n_samples)  # Most prominent frequency
+        respiratory_regularity = np.zeros(n_samples)  # How regular is breathing
+        apnea_indicator = np.zeros(n_samples)     # Low frequency power ratio
+        
+        signal_values = signal_series.values
+        
+        for i in range(n_samples):
+            # Define window around current sample
+            start_idx = max(0, i - FFT_WINDOW_SIZE // 2)
+            end_idx = min(n_samples, i + FFT_WINDOW_SIZE // 2)
+            
+            # Ensure minimum window size
+            if end_idx - start_idx < MIN_WINDOW_SIZE:
+                if i < n_samples // 2:
+                    end_idx = min(n_samples, start_idx + MIN_WINDOW_SIZE)
+                else:
+                    start_idx = max(0, end_idx - MIN_WINDOW_SIZE)
+            
+            window_signal = signal_values[start_idx:end_idx]
+            
+            if len(window_signal) >= MIN_WINDOW_SIZE:
+                # Preprocess signal
+                window_signal = window_signal - np.mean(window_signal)
+                
+                # Apply Hanning window
+                if len(window_signal) > 1:
+                    hann_window = np.hanning(len(window_signal))
+                    windowed_signal = window_signal * hann_window
+                else:
+                    windowed_signal = window_signal
+                
+                # Compute FFT
+                fft_vals = np.fft.fft(windowed_signal)
+                fft_magnitude = np.abs(fft_vals[:len(fft_vals)//2])
+                freqs = np.fft.fftfreq(len(windowed_signal), 1/sampling_rate)[:len(fft_vals)//2]
+                
+                if len(freqs) == 0:
+                    continue
+                
+                # Define sleep-specific frequency bands
+                very_low_mask = (freqs >= 0.008) & (freqs < 0.04)   # HRV, very slow patterns
+                low_mask = (freqs >= 0.04) & (freqs < 0.1)          # Slow respiratory
+                normal_resp_mask = (freqs >= 0.1) & (freqs < 0.3)   # Normal breathing (6-18 BPM)
+                fast_resp_mask = (freqs >= 0.3) & (freqs < 0.6)     # Fast breathing (18-36 BPM)
+                high_mask = (freqs >= 0.6) & (freqs < 2.0)          # Artifacts
+                
+                # Respiratory frequency range (combine normal + fast)
+                resp_mask = (freqs >= 0.1) & (freqs < 0.6)
+                
+                # Compute power in each band
+                power_very_low[i] = np.sum(fft_magnitude[very_low_mask]**2) if np.any(very_low_mask) else 0
+                power_low[i] = np.sum(fft_magnitude[low_mask]**2) if np.any(low_mask) else 0
+                power_normal_resp[i] = np.sum(fft_magnitude[normal_resp_mask]**2) if np.any(normal_resp_mask) else 0
+                power_fast_resp[i] = np.sum(fft_magnitude[fast_resp_mask]**2) if np.any(fast_resp_mask) else 0
+                power_high[i] = np.sum(fft_magnitude[high_mask]**2) if np.any(high_mask) else 0
+                
+                # Total power in respiratory range
+                resp_power = np.sum(fft_magnitude[resp_mask]**2) if np.any(resp_mask) else 0
+                total_power = np.sum(fft_magnitude**2)
+                
+                if total_power > 1e-10:
+                    # Spectral centroid (weighted by respiratory frequencies)
+                    if resp_power > 0:
+                        resp_freqs = freqs[resp_mask]
+                        resp_magnitude = fft_magnitude[resp_mask]
+                        if len(resp_freqs) > 0 and np.sum(resp_magnitude**2) > 0:
+                            spectral_centroid[i] = np.sum(resp_freqs * resp_magnitude**2) / np.sum(resp_magnitude**2)
+                    
+                    # Spectral spread in respiratory range
+                    if resp_power > 0 and spectral_centroid[i] > 0:
+                        resp_freqs = freqs[resp_mask]
+                        resp_magnitude = fft_magnitude[resp_mask]
+                        if len(resp_freqs) > 0:
+                            spectral_spread[i] = np.sqrt(np.sum((resp_freqs - spectral_centroid[i])**2 * resp_magnitude**2) / np.sum(resp_magnitude**2))
+                    
+                    # Respiratory regularity (inverse of spectral spread - more regular = higher value)
+                    respiratory_regularity[i] = 1.0 / (1.0 + spectral_spread[i]) if spectral_spread[i] > 0 else 1.0
+                    
+                    # Apnea indicator (ratio of low frequency to respiratory frequency power)
+                    if resp_power > 0:
+                        apnea_indicator[i] = (power_very_low[i] + power_low[i]) / resp_power
+                    else:
+                        apnea_indicator[i] = 10.0  # High value indicates potential apnea
+                
+                # Dominant frequency in respiratory range
+                if np.any(resp_mask):
+                    resp_fft = fft_magnitude[resp_mask]
+                    if len(resp_fft) > 0:
+                        dominant_idx = np.argmax(resp_fft)
+                        resp_freqs = freqs[resp_mask]
+                        dominant_frequency[i] = resp_freqs[dominant_idx] if dominant_idx < len(resp_freqs) else 0
+        
+        return pd.DataFrame({
+            'power_very_low': power_very_low,
+            'power_low': power_low,
+            'power_normal_resp': power_normal_resp,
+            'power_fast_resp': power_fast_resp,
+            'power_high': power_high,
+            'spectral_centroid': spectral_centroid,
+            'spectral_spread': spectral_spread,
+            'dominant_frequency': dominant_frequency,
+            'respiratory_regularity': respiratory_regularity,
+            'apnea_indicator': apnea_indicator
+        }, index=signal_series.index)
+    
+    # Apply comprehensive FFT features to breathing signal only
+    print("  - Computing comprehensive FFT features for breathing signal...")
+    breathing_fft_features = df.groupby('SessionID')['breathingSignal'].apply(
+        lambda x: compute_breathing_fft_features(x)
+    ).reset_index(level=0, drop=True)
+    
+    # Add breathing FFT features
+    for feature_name in breathing_fft_features.columns:
+        df[f'breathing_fft_{feature_name}'] = breathing_fft_features[feature_name]
+    
+    # Log added features
+    breathing_fft_names = [f'breathing_fft_{name}' for name in breathing_fft_features.columns]
+    
+    print(f"Breathing FFT features added: {breathing_fft_names}")
+    print(f"Total new FFT features: {len(breathing_fft_names)}\n")
+    
+    return df
+
+def enhanced_add_signal_features_breathing_focused(df):
+    """
+    Enhanced version focused on breathing signal features only.
+    """
+    print("Engineering breathing-focused signal features...")
+    
+    # Your existing features
     ROLLING_WINDOW_SIZE = 25
     df['breathing_signal_rolling_mean'] = df.groupby('SessionID')['breathingSignal'].transform(
         lambda x: x.rolling(window=ROLLING_WINDOW_SIZE, min_periods=1).mean()
@@ -331,8 +484,41 @@ def add_signal_features(df):
         lambda x: x.rolling(window=ROLLING_WINDOW_SIZE, min_periods=1).std()
     )
     df['accel_magnitude'] = np.sqrt(df['x']**2 + df['y']**2 + df['z']**2)
-    print(f"New features added: {['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']}\n")
+    
+    print(f"Time-domain features added: {['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']}")
+    
+    # Add breathing-focused FFT features
+    df = add_breathing_fft_features(df, sampling_rate=12.5)
+    
     return df
+
+def get_corrected_feature_columns():
+    """
+    Returns the correct feature columns that match what the functions actually create.
+    """
+    # Base features from your original data
+    base_features = ['breathingSignal', 'activityLevel', 'breathingRate', 'x', 'y', 'z']
+    
+    # Time-domain features from enhanced_add_signal_features_breathing_focused
+    time_domain_features = ['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+    
+    # FFT features from add_breathing_fft_features (these are the ACTUAL feature names created)
+    breathing_fft_features = [
+        'breathing_fft_power_very_low',
+        'breathing_fft_power_low', 
+        'breathing_fft_power_normal_resp',
+        'breathing_fft_power_fast_resp',
+        'breathing_fft_power_high',
+        'breathing_fft_spectral_centroid',
+        'breathing_fft_spectral_spread',
+        'breathing_fft_dominant_frequency',
+        'breathing_fft_respiratory_regularity',
+        'breathing_fft_apnea_indicator'
+    ]
+    
+    all_features = base_features + time_domain_features + breathing_fft_features
+    return all_features
+
 
 # ==============================================================================
 # 3. Main Execution Block
@@ -356,16 +542,14 @@ def main():
         1: ['Obstructive Apnea'],
         2: ['Hypopnea', 'Central Hypopnea', 'Obstructive Hypopnea'],
         3: ['Central Apnea', 'Mixed Apnea'],
-        4: ['RERA'],
-        5: ['Desaturation']
+        4: ['Desaturation']
     }
     LABEL_TO_EVENT_GROUP_NAME = {
         0: 'Normal',
         1: 'Obstructive Apnea',
         2: 'Hypopnea Events',
         3: 'Central/Mixed Apnea',
-        4: 'RERA',
-        5: 'Desaturation'
+        4: 'Desaturation'
     }
     N_OUTPUTS = len(EVENT_GROUP_TO_LABEL) + 1
     CLASS_NAMES = [LABEL_TO_EVENT_GROUP_NAME[i] for i in range(N_OUTPUTS)]
@@ -379,7 +563,8 @@ def main():
     RANDOM_STATE = 42
     EPOCHS = 100
     BATCH_SIZE = 64
-    FEATURE_COLUMNS = ['breathingSignal', 'activityLevel', 'breathingRate', 'x', 'y', 'z']
+    
+    FEATURE_COLUMNS = get_corrected_feature_columns()
 
     # --- Data Loading ---
     print("\n--- 2. Loading and preprocessing data ---")
@@ -451,7 +636,7 @@ def main():
 
     # --- Feature Engineering & Imputation ---
     print("\n--- 3. Engineering features, imputing missing values, and normalizing ---")
-    df = add_signal_features(df)
+    df = enhanced_add_signal_features_breathing_focused(df)
     
     # Fill std NaNs that can occur at the start of a group
     df['breathing_signal_rolling_std'].bfill(inplace=True)
