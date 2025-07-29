@@ -9,8 +9,8 @@
 #SBATCH --job-name=cnn-no-accel   # A descriptive name for your CNN job
 #SBATCH --gres=gpu:1                      # CNNs typically benefit most from a single powerful GPU per process
 #SBATCH --time=35:00:00                   # Request more time, CNN training can be long
-#SBATCH --output=../logs/cnn_attention_%j.out # Save logs one level up in a 'logs' folder
-#SBATCH --error=../logs/cnn_attention_%j.err
+#SBATCH --output=../logs/cnn_noaccel_%j.out # Save logs one level up in a 'logs' folder
+#SBATCH --error=../logs/cnn_noaccel_%j.err
 
 # --- Environment Setup ---
 echo "======================================================"
