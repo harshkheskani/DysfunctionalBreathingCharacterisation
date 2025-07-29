@@ -6,7 +6,7 @@
 #=========================================================================================
 
 # --- SLURM Preamble ---
-#SBATCH --job-name=cnn-attention    # A descriptive name for your CNN job
+#SBATCH --job-name=cnn-attention-no-acccel    # A descriptive name for your CNN job
 #SBATCH --gres=gpu:1                      # CNNs typically benefit most from a single powerful GPU per process
 #SBATCH --time=35:00:00                   # Request more time, CNN training can be long
 #SBATCH --output=../logs/cnn_attention_%j.out # Save logs one level up in a 'logs' folder

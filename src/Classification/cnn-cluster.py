@@ -39,256 +39,65 @@ import argparse
 # 2. Model & Helper Class Definitions
 # ==============================================================================
 
-### NEW: Improved CNN with Attention and Multi-Scale Convolutions ###
-
-
-class ChannelAttention(nn.Module):
-    """Channel attention mechanism to focus on important features"""
-    def __init__(self, channels, reduction=16):
-        super().__init__()
-        self.avg_pool = nn.AdaptiveAvgPool1d(1)
-        self.max_pool = nn.AdaptiveMaxPool1d(1)
-        
-        self.fc = nn.Sequential(
-            nn.Linear(channels, channels // reduction, bias=False),
-            nn.ReLU(),
-            nn.Linear(channels // reduction, channels, bias=False)
-        )
-        self.sigmoid = nn.Sigmoid()
-    
-    def forward(self, x):
-        b, c, _ = x.size()
-        
-        # Average pooling
-        avg_out = self.fc(self.avg_pool(x).view(b, c))
-        # Max pooling  
-        max_out = self.fc(self.max_pool(x).view(b, c))
-        
-        out = avg_out + max_out
-        return self.sigmoid(out).view(b, c, 1) * x
-
-class SpatialAttention(nn.Module):
-    """Spatial attention to focus on important time segments"""
-    def __init__(self, kernel_size=7):
-        super().__init__()
-        self.conv = nn.Conv1d(2, 1, kernel_size=kernel_size, padding=kernel_size//2, bias=False)
-        self.sigmoid = nn.Sigmoid()
-    
-    def forward(self, x):
-        avg_out = torch.mean(x, dim=1, keepdim=True)
-        max_out, _ = torch.max(x, dim=1, keepdim=True)
-        x_cat = torch.cat([avg_out, max_out], dim=1)
-        return self.sigmoid(self.conv(x_cat)) * x
-
-class ResidualBlock(nn.Module):
-    """Residual block with batch normalization and dropout"""
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, dropout=0.1):
-        super().__init__()
-        
-        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, 
-                              stride=stride, padding=kernel_size//2, bias=False)
-        self.bn1 = nn.BatchNorm1d(out_channels)
-        
-        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size, 
-                              stride=1, padding=kernel_size//2, bias=False)
-        self.bn2 = nn.BatchNorm1d(out_channels)
-        
-        self.dropout = nn.Dropout(dropout)
-        self.relu = nn.ReLU(inplace=True)
-        
-        # Skip connection
-        if in_channels != out_channels or stride != 1:
-            self.shortcut = nn.Sequential(
-                nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm1d(out_channels)
-            )
-        else:
-            self.shortcut = nn.Identity()
-    
-    def forward(self, x):
-        identity = self.shortcut(x)
-        
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.dropout(out)
-        
-        out = self.conv2(out)
-        out = self.bn2(out)
-        
-        out += identity
-        out = self.relu(out)
-        
-        return out
-
-class MultiScaleConv(nn.Module):
-    """Multi-scale convolution to capture patterns at different temporal scales"""
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        
-        # Different kernel sizes to capture different temporal patterns
-        self.branch1 = nn.Sequential(
-            nn.Conv1d(in_channels, out_channels // 4, kernel_size=3, padding=1),
-            nn.BatchNorm1d(out_channels // 4),
-            nn.ReLU()
-        )
-        
-        self.branch2 = nn.Sequential(
-            nn.Conv1d(in_channels, out_channels // 4, kernel_size=7, padding=3),
-            nn.BatchNorm1d(out_channels // 4),
-            nn.ReLU()
-        )
-        
-        self.branch3 = nn.Sequential(
-            nn.Conv1d(in_channels, out_channels // 4, kernel_size=15, padding=7),
-            nn.BatchNorm1d(out_channels // 4),
-            nn.ReLU()
-        )
-        
-        # 1x1 conv branch
-        self.branch4 = nn.Sequential(
-            nn.Conv1d(in_channels, out_channels // 4, kernel_size=1),
-            nn.BatchNorm1d(out_channels // 4),
-            nn.ReLU()
-        )
-        
-        # Combine features
-        self.combine = nn.Sequential(
-            nn.Conv1d(out_channels, out_channels, kernel_size=1),
-            nn.BatchNorm1d(out_channels),
-            nn.ReLU()
-        )
-    
-    def forward(self, x):
-        branch1 = self.branch1(x)
-        branch2 = self.branch2(x)
-        branch3 = self.branch3(x)
-        branch4 = self.branch4(x)
-        
-        # Concatenate all branches
-        out = torch.cat([branch1, branch2, branch3, branch4], dim=1)
-        out = self.combine(out)
-        
-        return out
-
-class ImprovedCNN(nn.Module):
-    """
-    Improved CNN for sleep apnea detection with:
-    - Multi-scale convolutions for different temporal patterns
-    - Residual connections for better gradient flow
-    - Channel and spatial attention mechanisms
-    - Proper regularization
-    """
+### NEW: PyTorch implementation of the requested Keras model ###
+class OSA_CNN_MultiClass(nn.Module):
     def __init__(self, n_features, n_outputs, n_timesteps):
-        super().__init__()
+        super(OSA_CNN_MultiClass, self).__init__()
         
-        self.n_features = n_features
-        self.n_outputs = n_outputs
-        self.n_timesteps = n_timesteps
+        # Conv Block 1
+        self.conv1 = nn.Conv1d(in_channels=n_features, out_channels=64, kernel_size=3, padding='same')
+        self.bn1 = nn.BatchNorm1d(64)
+        self.relu1 = nn.ReLU()
         
-        # Initial feature extraction
-        self.initial_conv = nn.Sequential(
-            nn.Conv1d(n_features, 64, kernel_size=7, padding=3),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.1)
-        )
+        # Conv Block 2
+        self.conv2 = nn.Conv1d(in_channels=64, out_channels=64, kernel_size=3, padding='same')
+        self.bn2 = nn.BatchNorm1d(64)
+        self.relu2 = nn.ReLU()
         
-        # Multi-scale feature extraction
-        self.multiscale1 = MultiScaleConv(64, 128)
-        self.pool1 = nn.MaxPool1d(2)
+        # Conv Block 3
+        self.conv3 = nn.Conv1d(in_channels=64, out_channels=64, kernel_size=3, padding='same')
+        self.relu3 = nn.ReLU()
+        self.dropout1 = nn.Dropout(0.5)
         
-        # Residual blocks
-        self.res_block1 = ResidualBlock(128, 128, kernel_size=5, dropout=0.15)
-        self.res_block2 = ResidualBlock(128, 256, kernel_size=5, stride=2, dropout=0.15)
+        # Pooling and Flattening
+        self.pool1 = nn.MaxPool1d(kernel_size=2)
+        self.flatten = nn.Flatten()
         
-        # Second multi-scale layer
-        self.multiscale2 = MultiScaleConv(256, 256)
-        self.pool2 = nn.MaxPool1d(2)
+        # Calculate the input size for the first dense layer automatically
+        with torch.no_grad():
+            dummy_input = torch.zeros(1, n_features, n_timesteps)
+            x = self.relu1(self.bn1(self.conv1(dummy_input)))
+            x = self.relu2(self.bn2(self.conv2(x)))
+            x = self.relu3(self.conv3(x))
+            dummy_output = self.pool1(x)
+            flattened_size = dummy_output.shape[1] * dummy_output.shape[2]
         
-        # More residual blocks
-        self.res_block3 = ResidualBlock(256, 256, kernel_size=3, dropout=0.2)
-        self.res_block4 = ResidualBlock(256, 512, kernel_size=3, stride=2, dropout=0.2)
-        
-        # Attention mechanisms
-        self.channel_attention = ChannelAttention(512)
-        self.spatial_attention = SpatialAttention()
-        
-        # Global pooling and classifier
-        self.global_pool = nn.AdaptiveAvgPool1d(1)
-        
-        # Calculate feature size after convolutions
-        self.feature_size = 512
-        
-        # Classifier with proper regularization
-        self.classifier = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(self.feature_size, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, n_outputs)
-        )
-        
-        # Initialize weights
-        self._initialize_weights()
-    
-    def _initialize_weights(self):
-        """Initialize weights using Xavier/He initialization"""
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.xavier_normal_(m.weight)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-    
+        # Dense Layers
+        self.fc1 = nn.Linear(flattened_size, 100)
+        self.relu4 = nn.ReLU()
+        self.fc2 = nn.Linear(100, n_outputs)
+        # Softmax is applied implicitly by nn.CrossEntropyLoss
+
     def forward(self, x):
-        # Input shape: (batch, timesteps, features)
-        # Convert to: (batch, features, timesteps) for Conv1d
+        # Input x has shape (batch, timesteps, features)
+        # We permute it to (batch, features, timesteps) for Conv1D
         x = x.permute(0, 2, 1)
         
-        # Initial feature extraction
-        x = self.initial_conv(x)
+        x = self.relu1(self.bn1(self.conv1(x)))
+        x = self.relu2(self.bn2(self.conv2(x)))
+        x = self.dropout1(self.relu3(self.conv3(x)))
         
-        # Multi-scale feature extraction
-        x = self.multiscale1(x)
         x = self.pool1(x)
+        x = self.flatten(x)
         
-        # Residual blocks
-        x = self.res_block1(x)
-        x = self.res_block2(x)
-        
-        # Second multi-scale layer
-        x = self.multiscale2(x)
-        x = self.pool2(x)
-        
-        # More residual blocks
-        x = self.res_block3(x)
-        x = self.res_block4(x)
-        
-        # Apply attention mechanisms
-        x = self.channel_attention(x)
-        x = self.spatial_attention(x)
-        
-        # Global pooling
-        x = self.global_pool(x)
-        x = x.view(x.size(0), -1)
-        
-        # Classification
-        x = self.classifier(x)
-        
+        x = self.relu4(self.fc1(x))
+        x = self.fc2(x) # Output raw logits
         return x
 
+# --- Device Setup ---
+device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
+print(f"Using device: {device}")
+        
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
     def __init__(self, patience=7, verbose=False, delta=0, path='checkpoint.pt', trace_func=print):
@@ -565,7 +374,7 @@ def main():
 
     # --- Initial Model Training & Evaluation ---
     print("\n--- 7. Training and Evaluating on the initial split ---")
-    model = ImprovedCNN(n_features=n_features, n_outputs=N_OUTPUTS, n_timesteps=n_timesteps).to(device)
+    model = OSA_CNN_MultiClass(n_features=n_features, n_outputs=N_OUTPUTS, n_timesteps=n_timesteps).to(device)
     print("\nPyTorch Improved CNN model created and moved to device.")
     
     learning_rate = 1e-4
@@ -691,7 +500,7 @@ def main():
         val_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
         train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
         
-        model = ImprovedCNN(n_features=n_features, n_outputs=N_OUTPUTS, n_timesteps=n_timesteps).to(device)
+        model = OSA_CNN_MultiClass(n_features=n_features, n_outputs=N_OUTPUTS, n_timesteps=n_timesteps).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-3)
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6)
         criterion = nn.CrossEntropyLoss()
