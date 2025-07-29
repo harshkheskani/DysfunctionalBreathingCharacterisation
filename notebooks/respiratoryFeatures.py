@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.integrate import simpson
 
 
+
 def cal_timeseries_instantaneous_rr(signal):
     """
     Calculate the instantaneous respiratory rate (breaths per minute) from a given respiratory signal.
