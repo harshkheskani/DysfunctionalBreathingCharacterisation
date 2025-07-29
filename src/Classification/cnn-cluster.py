@@ -98,9 +98,9 @@ class OSA_CNN_MultiClass(nn.Module):
 device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
 print(f"Using device: {device}")
         
+# --- EarlyStopping Class ---
 class EarlyStopping:
-    """Early stops the training if validation loss doesn't improve after a given patience."""
-    def __init__(self, patience=7, verbose=False, delta=0, path='checkpoint.pt', trace_func=print):
+    def __init__(self, patience=7, verbose=False, delta=0, path='cnn-noaccel.pt', trace_func=print):
         self.patience = patience
         self.verbose = verbose
         self.counter = 0
@@ -128,20 +128,6 @@ class EarlyStopping:
     def save_checkpoint(self, val_loss, model):
         torch.save(model.state_dict(), self.path)
         self.val_loss_min = val_loss
-
-def add_signal_features(df):
-    """Adds rolling window features to the dataframe."""
-    print("Engineering new signal-based features...")
-    ROLLING_WINDOW_SIZE = 25
-    df['breathing_signal_rolling_mean'] = df.groupby('SessionID')['breathingSignal'].transform(
-        lambda x: x.rolling(window=ROLLING_WINDOW_SIZE, min_periods=1).mean()
-    )
-    df['breathing_signal_rolling_std'] = df.groupby('SessionID')['breathingSignal'].transform(
-        lambda x: x.rolling(window=ROLLING_WINDOW_SIZE, min_periods=1).std()
-    )
-    df['accel_magnitude'] = np.sqrt(df['x']**2 + df['y']**2 + df['z']**2)
-    print(f"New features added: {['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']}\n")
-    return df
 
 # ==============================================================================
 # 3. Main Execution Block
@@ -258,12 +244,6 @@ def main():
     print(f"Final DataFrame shape: {df.shape}")
     print(f"Final class distribution in raw data: \n{df['Label'].value_counts(normalize=True)}")
 
-    # --- Feature Engineering & Imputation ---
-    print("\n--- 3. Engineering features, imputing missing values, and normalizing ---")
-    df = add_signal_features(df)
-    
-    # Fill std NaNs that can occur at the start of a group
-    df['breathing_signal_rolling_std'].bfill(inplace=True)
 
     print("Checking for and imputing missing values (NaNs)...")
     for col in df.columns:
@@ -381,7 +361,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.01)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6)
     criterion = nn.CrossEntropyLoss()
-    early_stopping = EarlyStopping(patience=20, verbose=False, path='checkpoint.pt')
+    early_stopping = EarlyStopping(patience=20, verbose=False, path='cnn-noaccel.pt')
 
     print("\nStarting PyTorch model training with Early Stopping and LR Scheduler...")
     for epoch in range(EPOCHS):
@@ -421,7 +401,7 @@ def main():
             break
     
     print("\nModel training complete. Loading best model weights...")
-    model.load_state_dict(torch.load('checkpoint.pt'))
+    model.load_state_dict(torch.load('cnn-noaccel.pt'))
     
     model.eval()
     all_preds, all_labels = [], []
@@ -504,7 +484,7 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-3)
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, min_lr=1e-6)
         criterion = nn.CrossEntropyLoss()
-        early_stopping = EarlyStopping(patience=20, verbose=False, path=f'lono_checkpoint_fold_attn_{fold}.pt')
+        early_stopping = EarlyStopping(patience=20, verbose=False, path=f'lono_checkpoint_cnn_{fold}.pt')
         
         for epoch in range(EPOCHS):
             model.train()
@@ -571,7 +551,7 @@ def main():
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
     plt.xticks(rotation=45, ha="right")
-    plt.savefig("confusion_matrix_lono_aggregated.png", bbox_inches='tight')
+    plt.savefig("confusion_matrix_lono_aggregated_cnn.png", bbox_inches='tight')
     # plt.show()
 
 
