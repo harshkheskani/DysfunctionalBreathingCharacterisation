@@ -1,0 +1,169 @@
+======================================================
+Job started on landonia19.inf.ed.ac.uk at Tue 29 Jul 16:48:32 BST 2025
+Job ID: 2051566
+======================================================
+Conda environment 'diss' activated.
+Using python: /home/s1978431/miniconda3/envs/diss/bin/python
+Changed to /home/s1978431/DysfunctionalBreathingCharacterisation
+Starting Python script: /home/s1978431/DysfunctionalBreathingCharacterisation/src/Classification/cnn-cluster.py
+Data source: /home/s1978431/DysfunctionalBreathingCharacterisation/data/bishkek_csr/03_train_ready
+Results will be saved to: /home/s1978431/DysfunctionalBreathingCharacterisation/results/cd2051566
+Using device: cuda
+--- 1. Setting up configuration and constants ---
+
+--- 2. Loading and preprocessing data ---
+Found 9 event files. Processing each one...
+  - Processing session: 10-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 11-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 24-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 16-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 25-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 26-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 08-05-2025
+  - Applying precise interval-based labels...
+  - Processing session: 04-04-2025
+  - Applying precise interval-based labels...
+  - Processing session: 05-04-2025
+  - Applying precise interval-based labels...
+
+----------------------------------------------------
+Data loading with PURE signals complete.
+Final DataFrame shape: (2363398, 14)
+Final class distribution in raw data: 
+Label
+0    0.883192
+5    0.071997
+2    0.036877
+1    0.007303
+3    0.000425
+4    0.000205
+Name: proportion, dtype: float64
+
+--- 3. Engineering features, imputing missing values, and normalizing ---
+Engineering new signal-based features...
+New features added: ['breathing_signal_rolling_mean', 'breathing_signal_rolling_std', 'accel_magnitude']
+
+Checking for and imputing missing values (NaNs)...
+  - Found 4762 NaNs in 'breathingSignal'. Applying forward-fill and backward-fill.
+  - Found 2317390 NaNs in 'breathingRate'. Applying forward-fill and backward-fill.
+  - Found 1954 NaNs in 'breathing_signal_rolling_mean'. Applying forward-fill and backward-fill.
+
+Imputation complete. No NaNs remain in feature columns.
+
+Applying per-session (per-subject) normalization...
+Normalization complete.
+
+--- 4. Creating time-series windows ---
+Number of classes: 6
+Class names: ['Normal', 'Obstructive Apnea', 'Hypopnea Events', 'Central/Mixed Apnea', 'RERA', 'Desaturation']
+
+Starting the windowing process on normalized data...
+
+Data windowing complete.
+----------------------------------------------------
+Shape of X (features): (31897, 375, 2)
+Shape of y (labels):   (31897,)
+Shape of groups (IDs): (31897,)
+Final class distribution across all windows: Counter({np.int64(0): 28201, np.int64(5): 2501, np.int64(2): 1034, np.int64(1): 151, np.int64(3): 6, np.int64(4): 4})
+
+--- 5. Setting up PyTorch device ---
+Using device: cuda
+
+--- 6. Performing initial train-test split for preliminary check ---
+Train-test split complete.
+Training set class distribution: Counter({np.int64(0): 21969, np.int64(5): 1612, np.int64(2): 699, np.int64(1): 115, np.int64(3): 4, np.int64(4): 4})
+Testing set class distribution:  Counter({np.int64(0): 6232, np.int64(5): 889, np.int64(2): 335, np.int64(1): 36, np.int64(3): 2})
+
+Balancing the training data using SMOTE...
+  - Original training distribution: Counter({np.int64(0): 21969, np.int64(5): 1612, np.int64(2): 699, np.int64(1): 115, np.int64(3): 4, np.int64(4): 4})
+Smallest minority class has 4 samples. Setting k_neighbors for SMOTE to 3.
+  - Resampled training distribution: Counter({np.int64(0): 21969, np.int64(5): 21969, np.int64(2): 21969, np.int64(1): 21969, np.int64(3): 21969, np.int64(4): 21969})
+
+PyTorch DataLoaders created successfully.
+
+--- 7. Training and Evaluating on the initial split ---
+
+PyTorch Improved CNN model created and moved to device.
+
+Starting PyTorch model training with Early Stopping and LR Scheduler...
+Epoch [1/100], Train Loss: 0.5290, Val Loss: 1.0254, Val Accuracy: 53.54%
+Epoch [2/100], Train Loss: 0.3208, Val Loss: 0.8374, Val Accuracy: 69.70%
+Epoch [3/100], Train Loss: 0.2374, Val Loss: 0.9521, Val Accuracy: 60.98%
+Epoch [4/100], Train Loss: 0.1906, Val Loss: 0.8636, Val Accuracy: 68.78%
+Epoch [5/100], Train Loss: 0.1621, Val Loss: 0.8375, Val Accuracy: 73.15%
+Epoch [6/100], Train Loss: 0.1455, Val Loss: 0.8836, Val Accuracy: 69.28%
+Epoch [7/100], Train Loss: 0.1329, Val Loss: 0.8211, Val Accuracy: 77.78%
+Epoch [8/100], Train Loss: 0.1223, Val Loss: 0.8453, Val Accuracy: 72.66%
+Epoch [9/100], Train Loss: 0.1166, Val Loss: 0.8453, Val Accuracy: 73.67%
+Epoch [10/100], Train Loss: 0.1106, Val Loss: 0.8533, Val Accuracy: 72.91%
+Epoch [11/100], Train Loss: 0.1054, Val Loss: 0.8097, Val Accuracy: 76.49%
+Epoch [12/100], Train Loss: 0.1009, Val Loss: 0.8290, Val Accuracy: 75.01%
+Epoch [13/100], Train Loss: 0.0982, Val Loss: 0.8187, Val Accuracy: 74.37%
+Epoch [14/100], Train Loss: 0.0950, Val Loss: 0.8328, Val Accuracy: 74.03%
+Epoch [15/100], Train Loss: 0.0917, Val Loss: 0.8135, Val Accuracy: 74.17%
+Epoch [16/100], Train Loss: 0.0918, Val Loss: 0.8340, Val Accuracy: 73.54%
+Epoch [17/100], Train Loss: 0.0889, Val Loss: 0.7883, Val Accuracy: 77.01%
+Epoch [18/100], Train Loss: 0.0866, Val Loss: 0.8052, Val Accuracy: 73.85%
+Epoch [19/100], Train Loss: 0.0860, Val Loss: 0.8248, Val Accuracy: 73.50%
+Epoch [20/100], Train Loss: 0.0844, Val Loss: 0.8120, Val Accuracy: 76.49%
+Epoch [21/100], Train Loss: 0.0839, Val Loss: 0.7898, Val Accuracy: 75.50%
+Epoch [22/100], Train Loss: 0.0818, Val Loss: 0.8151, Val Accuracy: 75.81%
+Epoch [23/100], Train Loss: 0.0811, Val Loss: 0.7847, Val Accuracy: 76.15%
+Epoch [24/100], Train Loss: 0.0805, Val Loss: 0.8402, Val Accuracy: 71.96%
+Epoch [25/100], Train Loss: 0.0800, Val Loss: 0.7852, Val Accuracy: 76.03%
+Epoch [26/100], Train Loss: 0.0784, Val Loss: 0.7782, Val Accuracy: 76.21%
+Epoch [27/100], Train Loss: 0.0779, Val Loss: 0.8264, Val Accuracy: 71.92%
+Epoch [28/100], Train Loss: 0.0779, Val Loss: 0.7795, Val Accuracy: 76.47%
+Epoch [29/100], Train Loss: 0.0777, Val Loss: 0.8192, Val Accuracy: 73.23%
+Epoch [30/100], Train Loss: 0.0777, Val Loss: 0.7816, Val Accuracy: 74.19%
+Epoch [31/100], Train Loss: 0.0770, Val Loss: 0.7758, Val Accuracy: 77.13%
+Epoch [32/100], Train Loss: 0.0755, Val Loss: 0.7727, Val Accuracy: 76.55%
+Epoch [33/100], Train Loss: 0.0752, Val Loss: 0.7823, Val Accuracy: 75.49%
+Epoch [34/100], Train Loss: 0.0750, Val Loss: 0.7596, Val Accuracy: 78.33%
+Epoch [35/100], Train Loss: 0.0761, Val Loss: 0.7806, Val Accuracy: 75.35%
+Epoch [36/100], Train Loss: 0.0751, Val Loss: 0.7849, Val Accuracy: 75.11%
+Epoch [37/100], Train Loss: 0.0747, Val Loss: 0.7876, Val Accuracy: 74.67%
+Epoch [38/100], Train Loss: 0.0738, Val Loss: 0.7586, Val Accuracy: 77.61%
+Epoch [39/100], Train Loss: 0.0735, Val Loss: 0.8212, Val Accuracy: 72.24%
+Epoch [40/100], Train Loss: 0.0743, Val Loss: 0.7723, Val Accuracy: 77.66%
+Epoch [41/100], Train Loss: 0.0745, Val Loss: 0.7920, Val Accuracy: 75.86%
+Epoch [42/100], Train Loss: 0.0735, Val Loss: 0.8369, Val Accuracy: 71.07%
+Epoch [43/100], Train Loss: 0.0736, Val Loss: 0.7763, Val Accuracy: 77.76%
+Epoch [44/100], Train Loss: 0.0719, Val Loss: 0.8812, Val Accuracy: 68.68%
+Epoch [45/100], Train Loss: 0.0506, Val Loss: 0.7403, Val Accuracy: 78.49%
+Epoch [46/100], Train Loss: 0.0475, Val Loss: 0.7404, Val Accuracy: 78.06%
+Epoch [47/100], Train Loss: 0.0474, Val Loss: 0.7497, Val Accuracy: 77.10%
+Epoch [48/100], Train Loss: 0.0472, Val Loss: 0.7444, Val Accuracy: 77.03%
+Epoch [49/100], Train Loss: 0.0465, Val Loss: 0.7317, Val Accuracy: 78.38%
+Epoch [50/100], Train Loss: 0.0465, Val Loss: 0.7379, Val Accuracy: 77.38%
+Epoch [51/100], Train Loss: 0.0466, Val Loss: 0.7522, Val Accuracy: 75.70%
+Epoch [52/100], Train Loss: 0.0464, Val Loss: 0.7480, Val Accuracy: 77.37%
+Epoch [53/100], Train Loss: 0.0463, Val Loss: 0.7442, Val Accuracy: 76.53%
+Epoch [54/100], Train Loss: 0.0462, Val Loss: 0.7508, Val Accuracy: 76.57%
+Epoch [55/100], Train Loss: 0.0463, Val Loss: 0.7475, Val Accuracy: 77.49%
+Epoch [56/100], Train Loss: 0.0420, Val Loss: 0.7381, Val Accuracy: 77.33%
+Epoch [57/100], Train Loss: 0.0416, Val Loss: 0.7369, Val Accuracy: 77.70%
+Epoch [58/100], Train Loss: 0.0416, Val Loss: 0.7434, Val Accuracy: 77.07%
+Epoch [59/100], Train Loss: 0.0413, Val Loss: 0.7468, Val Accuracy: 76.65%
+Epoch [60/100], Train Loss: 0.0416, Val Loss: 0.7431, Val Accuracy: 77.10%
+Epoch [61/100], Train Loss: 0.0415, Val Loss: 0.7414, Val Accuracy: 76.98%
+Epoch [62/100], Train Loss: 0.0409, Val Loss: 0.7383, Val Accuracy: 77.30%
+Epoch [63/100], Train Loss: 0.0406, Val Loss: 0.7420, Val Accuracy: 76.91%
+Epoch [64/100], Train Loss: 0.0408, Val Loss: 0.7326, Val Accuracy: 77.28%
+Epoch [65/100], Train Loss: 0.0406, Val Loss: 0.7367, Val Accuracy: 77.29%
+Epoch [66/100], Train Loss: 0.0403, Val Loss: 0.7465, Val Accuracy: 77.01%
+Epoch [67/100], Train Loss: 0.0406, Val Loss: 0.7376, Val Accuracy: 77.56%
+Epoch [68/100], Train Loss: 0.0405, Val Loss: 0.7386, Val Accuracy: 77.38%
+Epoch [69/100], Train Loss: 0.0407, Val Loss: 0.7351, Val Accuracy: 77.46%
+Early stopping triggered
+
+Model training complete. Loading best model weights...
+======================================================
+Job finished at Tue 29 Jul 17:10:43 BST 2025
+======================================================
