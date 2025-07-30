@@ -517,7 +517,7 @@ def main():
 
         print(f"  - Training complete for fold {fold + 1}.")
         
-        model.load_state_dict(torch.load(f'lono_checkpoint_fold_attn_{fold}.pt'))
+        model.load_state_dict(torch.load(f'lono_checkpoint_cnn_{fold}.pt'))
         model.eval()
         fold_preds, fold_labels = [], []
         with torch.no_grad():
