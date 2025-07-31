@@ -1,52 +1,4 @@
-# ==============================================================================
-# 0. Preamble & Imports
-# ==============================================================================
-# This script trains and evaluates an attention-based multi-scale CNN for sleep
-# apnea detection. It performs an initial train-test split evaluation followed by
-# a more robust Leave-One-Night-Out (LONO) cross-validation.
-#
-# To run, ensure all dependencies are installed and execute from the command line:
-# python multiCNN_attention.py
-#
-# NOTE: The script will generate and display plots. For use on a cluster without
-# a display, you can save the plots by uncommenting the `plt.savefig()` lines
-# and commenting out `plt.show()`.
-#
-# Dependencies:
-# pandas, numpy, scikit-learn, imbalanced-learn, torch, seaborn, matplotlib
 
-import pandas as pd
-import numpy as np
-import glob
-import os
-from scipy import stats
-from collections import Counter
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import TensorDataset, DataLoader
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from sklearn.model_selection import train_test_split, LeaveOneGroupOut
-from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.preprocessing import StandardScaler
-from imblearn.over_sampling import SMOTE, RandomOverSampler
-import seaborn as sns
-import matplotlib.pyplot as plt
-import math
-import argparse
-
-# ==============================================================================
-# 2. Model & Helper Class Definitions
-# ==============================================================================
-
-### NEW: Improved CNN with Attention and Multi-Scale Convolutions ###
-
-
-# ==============================================================================
-# Enhanced Attention-Based CNN with Visualization Capabilities
-# ==============================================================================
-# This enhanced version adds comprehensive visualization tools to understand
-# what the attention mechanisms are focusing on during classification.
 
 import pandas as pd
 import numpy as np
@@ -942,6 +894,8 @@ def main():
                         help='Base directory containing event_exports, respeck, and nasal_files folders.')
     parser.add_argument('--base_output_dir', type=str, required=True,
                         help='Base directory to save results (e.g., plots, checkpoints).')
+    parser.add_argument('--visualize', action='store_true',
+                    help='Generate attention visualizations')
     args = parser.parse_args()
     # --- Configuration & Constants ---
     print("--- 1. Setting up configuration and constants ---")
@@ -1338,6 +1292,15 @@ def main():
         all_fold_predictions.extend(fold_preds)
         all_fold_true_labels.extend(fold_labels)
         print(f"  - Evaluation complete for fold {fold + 1}.\n")
+        if args.visualize:  # Only visualize first 3 folds to avoid too many files
+            print(f"  - Generating attention visualizations for fold {fold + 1}...")
+            fold_visualizer = AttentionVisualizer(model, FEATURE_COLUMNS, CLASS_NAMES, device)
+            fold_output_dir = os.path.join(args.base_output_dir, f'attention_analysis_fold_{fold+1}')
+            
+            fold_visualizer.generate_comprehensive_analysis(
+                X_test, y_test, np.array(fold_preds), 
+                output_dir=fold_output_dir
+            )
 
     # --- FINAL AGGREGATED LONO EVALUATION ---
     print("\n====================================================")
@@ -1358,7 +1321,7 @@ def main():
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
     plt.xticks(rotation=45, ha="right")
-    plt.savefig("confusion_matrix_lono_aggregated.png", bbox_inches='tight')
+    plt.savefig("confusion_matrix_lono_aggregated_viz.png", bbox_inches='tight')
     # plt.show()
 
 
