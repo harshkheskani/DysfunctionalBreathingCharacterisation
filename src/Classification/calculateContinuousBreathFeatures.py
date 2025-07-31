@@ -71,6 +71,7 @@ def calculate_TS_breathFeatures(timestamps, signal):
             "inhalation_durations": inhalation_durations,
             "exhalation_durations": exhalation_durations
         }
+        print(window_dict)
 
         return window_dict
 
