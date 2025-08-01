@@ -76,4 +76,4 @@ def calculate_TS_breathFeatures(timestamps, signal):
 
     except Exception as e:
         # Print any encountered errors
-        print(f"Error in calculate_TS_breathFeatures: {e}")
+        return None
