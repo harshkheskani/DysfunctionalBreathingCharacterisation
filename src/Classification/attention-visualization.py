@@ -450,13 +450,18 @@ class AttentionVisualizer:
                 plt.show()
             else:
                 plt.close()
-    
+        
+
     def visualize_feature_importance_by_class(self, X_test, y_test, n_samples_per_class=5, 
-                                            save_path=None, show_plot=True):
-        """Analyze which features are most important for each class"""
+                                                save_path=None, show_plot=True):
+        """
+        Analyzes which internal model channels are most important for each class by
+        visualizing the average channel attention weights.
+        """
         self.model.eval()
         
         class_importance = {}
+        num_channels = 0
         
         for class_idx in range(len(self.class_names)):
             class_mask = y_test == class_idx
@@ -473,28 +478,37 @@ class AttentionVisualizer:
                     
                     attention_weights = self.model.get_attention_weights()
                     if attention_weights['channel_attention'] is not None:
-                        channel_attentions.append(attention_weights['channel_attention'].squeeze().numpy())
+                        weights = attention_weights['channel_attention'].squeeze().numpy()
+                        channel_attentions.append(weights)
+                        if num_channels == 0:
+                            num_channels = len(weights) # Get the number of channels (e.g., 512)
             
             if channel_attentions:
                 class_importance[class_idx] = np.mean(channel_attentions, axis=0)
         
-        # Plot feature importance by class
+        # --- PLOTTING LOGIC CORRECTED ---
+        # We now use a line plot to show the attention distribution across internal channels.
         fig, ax = plt.subplots(figsize=(15, 8))
         
-        x_pos = np.arange(len(self.feature_names))
-        width = 0.8 / len(class_importance)
+        if not class_importance:
+            print("Warning: No class importance data to plot.")
+            plt.close()
+            return {}
+
+        for class_idx, importance_vector in class_importance.items():
+            # Ensure the importance_vector has the expected length
+            if len(importance_vector) != num_channels:
+                print(f"Warning: Skipping plot for class {self.class_names[class_idx]} due to mismatched shape.")
+                continue
+            ax.plot(np.arange(num_channels), importance_vector, 
+                    label=self.class_names[class_idx], alpha=0.8)
         
-        for i, (class_idx, importance) in enumerate(class_importance.items()):
-            ax.bar(x_pos + i * width, importance, width, 
-                   label=self.class_names[class_idx], alpha=0.8)
-        
-        ax.set_xlabel('Features')
+        ax.set_xlabel(f'Channel Index in Final Convolutional Layer (Total {num_channels} channels)')
         ax.set_ylabel('Average Channel Attention Weight')
-        ax.set_title('Feature Importance by Class (Channel Attention)')
-        ax.set_xticks(x_pos + width * (len(class_importance) - 1) / 2)
-        ax.set_xticklabels(self.feature_names, rotation=45, ha='right')
+        ax.set_title('Class-wise Average Channel Attention Distribution')
         ax.legend()
-        ax.grid(True, alpha=0.3)
+        ax.grid(True, linestyle='--', alpha=0.5)
+        ax.set_xlim(0, num_channels - 1)
         
         plt.tight_layout()
         
