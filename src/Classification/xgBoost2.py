@@ -351,12 +351,17 @@ def create_features_per_session(events_folder, respeck_folder, output_dir):
     #         continue
     # all_labels_for_encoder.append(0) # Ensure 'Normal' is always included
     
-    le = LabelEncoder()
+    # le = LabelEncoder()
     # le.fit(list(set(all_labels_for_encoder)))
     # print(f"Label encoder fitted with classes: {le.classes_}")
     # np.save(os.path.join(output_dir, 'label_encoder_classes.npy'), le.classes_)
     # print(f"Saved label encoder mapping to {output_dir}")
-    
+    le = LabelEncoder()
+    le.fit([0, 1]) # Explicitly tell the encoder the classes are 0 and 1
+    print(f"Label encoder fitted for BINARY classification with classes: {le.classes_}")
+    # You can optionally save the encoder if your local script needs it, it's good practice.
+    np.save(os.path.join(output_dir, 'label_encoder_classes.npy'), le.classes_)
+    print(f"Saved label encoder mapping to {output_dir}")
     # --- Main processing loop: one session at a time ---
     for event_file_path in event_files:
         base_name = os.path.basename(event_file_path)
