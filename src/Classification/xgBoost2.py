@@ -388,8 +388,8 @@ def create_features_per_session(events_folder, respeck_folder, output_dir):
                 df_['timestamp_unix'] = df_['timestamp_unix'].astype('int64')
 
             # df_respeck['label_raw'] = 0 # Use a temporary column name
-            # df_events['Duration_ms'] = (df_events['Duration'] * 1000).astype('int64')
-            # df_events['end_time_unix'] = df_events['timestamp_unix'] + df_events['Duration_ms']
+            df_events['Duration_ms'] = (df_events['Duration'] * 1000).astype('int64')
+            df_events['end_time_unix'] = df_events['timestamp_unix'] + df_events['Duration_ms']
             
             # for label_id, event_names in event_group_map.items():
             #     if label_id == 0: continue
