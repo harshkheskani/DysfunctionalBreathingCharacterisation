@@ -37,7 +37,7 @@ cd $PROJECT_DIR
 echo "Changed to $(pwd)"
 
 # Path to the enhanced python script
-PYTHON_SCRIPT="$PROJECT_DIR/src/Classification/attention-visualization.py" # Updated script name
+PYTHON_SCRIPT="$PROJECT_DIR/src/Classification/saattention-visualization.py" # Updated script name
 
 # Input data directory, relative to the project root
 DATA_DIR="$PROJECT_DIR/data/bishkek_csr/03_train_ready"

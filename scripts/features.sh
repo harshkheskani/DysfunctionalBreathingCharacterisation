@@ -7,8 +7,8 @@
 # --- SLURM Preamble ---
 #SBATCH --job-name=features_extract  # A descriptive name for the job
 #SBATCH --cpus-per-task=12           # This is a CPU-intensive task, 12 is a good number
-#SBATCH --mem=128G                    # Request a good amount of memory
-#SBATCH --time=010:00:00              # Request 5 hours, adjust if needed
+#SBATCH --mem=64G                    # Request a good amount of memory
+#SBATCH --time=10:00:00              # Request 5 hours, adjust if needed
 #SBATCH --output=../logs/features_%j.out # Save logs one level up in a 'logs' folder
 #SBATCH --error=../logs/features_%j.err
 
