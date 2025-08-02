@@ -318,7 +318,7 @@ def process_windows_in_chunks(timestamps_list, signals_list, chunk_size=1000):
 
 
 
-def create_features_per_session(events_folder, respeck_folder, output_dir):
+def create_features_per_session(events_folder, respeck_folder, output_dir, event_group_map):
     """
     Loops through each session, extracts features, and saves a single .parquet file for each one.
     This is the most memory-efficient approach.
@@ -339,29 +339,24 @@ def create_features_per_session(events_folder, respeck_folder, output_dir):
 
     # --- First pass to determine all possible labels for the encoder ---
     # This ensures the LabelEncoder is consistent across all data
-    # print("🔄 First pass: Scanning all labels to build a consistent encoder...")
-    # for event_file_path in event_files:
-    #     try:
-    #         df_events = pd.read_csv(event_file_path, decimal=',')
-    #         for label_id, event_names in event_group_map.items():
-    #             if label_id != 0 and df_events['Event'].isin(event_names).any():
-    #                 all_labels_for_encoder.append(label_id)
-    #     except Exception as e:
-    #         print(f"  - Warning: could not read labels from {event_file_path}: {e}")
-    #         continue
-    # all_labels_for_encoder.append(0) # Ensure 'Normal' is always included
+    print("🔄 First pass: Scanning all labels to build a consistent encoder...")
+    for event_file_path in event_files:
+        try:
+            df_events = pd.read_csv(event_file_path, decimal=',')
+            for label_id, event_names in event_group_map.items():
+                if label_id != 0 and df_events['Event'].isin(event_names).any():
+                    all_labels_for_encoder.append(label_id)
+        except Exception as e:
+            print(f"  - Warning: could not read labels from {event_file_path}: {e}")
+            continue
+    all_labels_for_encoder.append(0) # Ensure 'Normal' is always included
     
-    # le = LabelEncoder()
-    # le.fit(list(set(all_labels_for_encoder)))
-    # print(f"Label encoder fitted with classes: {le.classes_}")
-    # np.save(os.path.join(output_dir, 'label_encoder_classes.npy'), le.classes_)
-    # print(f"Saved label encoder mapping to {output_dir}")
     le = LabelEncoder()
-    le.fit([0, 1]) # Explicitly tell the encoder the classes are 0 and 1
-    print(f"Label encoder fitted for BINARY classification with classes: {le.classes_}")
-    # You can optionally save the encoder if your local script needs it, it's good practice.
+    le.fit(list(set(all_labels_for_encoder)))
+    print(f"Label encoder fitted with classes: {le.classes_}")
     np.save(os.path.join(output_dir, 'label_encoder_classes.npy'), le.classes_)
     print(f"Saved label encoder mapping to {output_dir}")
+    
     # --- Main processing loop: one session at a time ---
     for event_file_path in event_files:
         base_name = os.path.basename(event_file_path)
@@ -392,26 +387,16 @@ def create_features_per_session(events_folder, respeck_folder, output_dir):
                 df_.dropna(subset=['timestamp_unix'], inplace=True)
                 df_['timestamp_unix'] = df_['timestamp_unix'].astype('int64')
 
-            # df_respeck['label_raw'] = 0 # Use a temporary column name
+            df_respeck['label_raw'] = 0 # Use a temporary column name
             df_events['Duration_ms'] = (df_events['Duration'] * 1000).astype('int64')
             df_events['end_time_unix'] = df_events['timestamp_unix'] + df_events['Duration_ms']
             
-            # for label_id, event_names in event_group_map.items():
-            #     if label_id == 0: continue
-            #     df_filtered = df_events[df_events['Event'].isin(event_names)]
-            #     for _, event in df_filtered.iterrows():
-            #         df_respeck.loc[df_respeck['timestamp_unix'].between(event['timestamp_unix'], event['end_time_unix']), 'label_raw'] = label_id
-            df_respeck['label_raw'] = 0
-                
-            # The ONLY event that gets label 1 is 'Obstructive Apnea'
-            target_event_name = ['Obstructive Apnea']
-            df_filtered = df_events[df_events['Event'].isin(target_event_name)]
-            
-            for _, event in df_filtered.iterrows():
-                df_respeck.loc[
-                    df_respeck['timestamp_unix'].between(event['timestamp_unix'], event['end_time_unix']), 
-                    'label_raw'
-                ] = 1 
+            for label_id, event_names in event_group_map.items():
+                if label_id == 0: continue
+                df_filtered = df_events[df_events['Event'].isin(event_names)]
+                for _, event in df_filtered.iterrows():
+                    df_respeck.loc[df_respeck['timestamp_unix'].between(event['timestamp_unix'], event['end_time_unix']), 'label_raw'] = label_id
+
             # --- Windowing and Feature Extraction ---
             session_windows_sig = []
             session_windows_ts = []
@@ -435,9 +420,9 @@ def create_features_per_session(events_folder, respeck_folder, output_dir):
 
             # Process features for this session's windows
             features_df = process_windows_in_chunks(session_windows_ts, session_windows_sig)
-            features_df['label'] = le.transform(session_labels) 
+            
             # Add labels and session_id, then save
-            # features_df['label'] = le.transform(session_labels) # Use the fitted encoder
+            features_df['label'] = le.transform(session_labels) # Use the fitted encoder
             features_df['session_id'] = session_id
             
             features_df.to_parquet(output_parquet_path, index=False)
@@ -455,15 +440,23 @@ def create_features_per_session(events_folder, respeck_folder, output_dir):
 
 # --- SCRIPT ENTRY POINT ---
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Extract features for BINARY Obstructive Apnea detection.")
+    parser = argparse.ArgumentParser(description="Extract features per session and save to Parquet.")
     parser.add_argument('--events_folder', type=str, required=True, help='Path to event_export CSVs.')
     parser.add_argument('--respeck_folder', type=str, required=True, help='Path to respeck CSVs.')
     parser.add_argument('--output_dir', type=str, required=True, help='Path to save feature files.')
     args = parser.parse_args()
 
-    # The main function will now handle the binary logic directly
+    EVENT_GROUP_TO_LABEL = {
+        0: ['Normal'], # Implicitly handled
+        1: ['Obstructive Apnea'],
+        2: ['Hypopnea', 'Central Hypopnea', 'Obstructive Hypopnea'],
+        3: ['Central Apnea', 'Mixed Apnea'],
+        4: ['Desaturation']
+    }
+
     create_features_per_session(
         events_folder=args.events_folder,
         respeck_folder=args.respeck_folder,
-        output_dir=args.output_dir
+        output_dir=args.output_dir,
+        event_group_map=EVENT_GROUP_TO_LABEL
     )
